@@ -1,0 +1,29 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+header {
+    background-color: #1e1e1e;
+    color: white;
+    padding: 1rem;
+    text-align: center;
+}
+#scan-form {
+    margin: 2rem;
+}
+#scan-form input {
+    padding: 0.5rem;
+    width: 300px;
+}
+#scan-form button {
+    padding: 0.5rem 1rem;
+    margin-left: 0.5rem;
+}
+#scan-result {
+    margin: 2rem;
+}
+.pass { color: green; }
+.needs_improvement { color: orange; }
+.not_configured { color: red; }
+.info { color: blue; }

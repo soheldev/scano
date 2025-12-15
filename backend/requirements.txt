@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+requests
+rich
+python-multipart
+jinja2
+reportlab
