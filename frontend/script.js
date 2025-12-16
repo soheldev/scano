@@ -1,3 +1,5 @@
+const BACKEND_URL = "http://100.31.6.94:8000"; // change to EC2 IP:8000
+
 const scanBtn = document.getElementById("scan-btn");
 const pdfBtn = document.getElementById("pdf-btn");
 const urlInput = document.getElementById("url-input");
@@ -7,47 +9,40 @@ scanBtn.onclick = async () => {
     const url = urlInput.value.trim();
     if (!url) return alert("Enter a URL");
     resultDiv.innerHTML = "Scanning...";
+
     try {
         const res = await fetch(`${BACKEND_URL}/api/scan`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ url })
         });
-        if (!res.ok) throw new Error(`Server returned status ${res.status}`);
         const data = await res.json();
-        displayResult(data);
-    } catch (e) {
-        console.error(e);
-        resultDiv.innerHTML = "Error scanning URL. Check backend is running and CORS is allowed.";
+        display(data);
+    } catch {
+        resultDiv.innerHTML = "Scan failed";
     }
 };
 
 pdfBtn.onclick = () => {
     const url = urlInput.value.trim();
-    if (!url) return alert("Enter a URL");
-    window.open(`${BACKEND_URL}/api/scan/pdf?url=${encodeURIComponent(url)}`, "_blank");
+    window.open(`${BACKEND_URL}/api/scan/pdf?url=${encodeURIComponent(url)}`);
 };
 
-function displayResult(data) {
-    let html = `<h2>Scan Results for ${data.target}</h2>`;
-    html += `<p>Security Score: ${data.score || 0}/100</p>`;
-    html += "<table border='1' cellpadding='5'><tr><th>Check</th><th>Status</th><th>Details</th></tr>";
-    for (let [key, val] of Object.entries(data.checks)) {
-        html += `<tr>
-            <td>${key}</td>
-            <td class="${val ? "ok" : "missing"}">${val ? "OK" : "Missing"}</td>
-            <td>${val || ""}</td>
-        </tr>`;
-    }
-    html += "</table>";
-
-    if (data.recommendations && data.recommendations.length > 0) {
-        html += "<h3>Recommendations:</h3><ul>";
-        for (let rec of data.recommendations) {
-            html += `<li>${rec}</li>`;
-        }
-        html += "</ul>";
-    }
-
+function display(data) {
+    let html = `<h2>${data.target}</h2>`;
+    html += `<p>Score: ${data.score}/100</p>`;
+    html += "<h3>TLS Info</h3><ul>";
+    for (const [k,v] of Object.entries(data.tls || {})) html += `<li>${k}: ${v}</li>`;
+    html += "</ul><h3>Headers</h3><ul>";
+    for (const [k,v] of Object.entries(data.headers || {})) html += `<li>${k}: ${v ? "Present" : "Missing"}</li>`;
+    html += "</ul><h3>CSP</h3>";
+    html += `<p>Status: ${data.csp_analysis.status}</p><ul>`;
+    for (const i of data.csp_analysis.issues) html += `<li>${i}</li>`;
+    html += "</ul>";
+    html += `<p>CDN / Proxy: ${data.cdn}</p>`;
+    html += "<h3>Recommendations</h3><ul>";
+    for (const r of data.recommendations) html += `<li>${r}</li>`;
+    html += "</ul>";
     resultDiv.innerHTML = html;
 }
+

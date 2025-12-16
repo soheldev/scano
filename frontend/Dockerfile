@@ -1,10 +1,7 @@
-FROM nginx:alpine
+FROM node:20-alpine
+WORKDIR /app
+RUN npm install -g http-server
+COPY . .
+EXPOSE 3000
+CMD ["http-server", ".", "-p", "3000"]
 
-# Remove default Nginx files
-RUN rm -rf /usr/share/nginx/html/*
-
-# Copy frontend files
-COPY . /usr/share/nginx/html
-
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
