@@ -1,17 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Scano - Web Security Scanner</title>
-<link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scano - Web Security Scanner</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<h1>Scano</h1>
-<input id="url-input" placeholder="https://example.com">
-<button id="scan-btn">Scan</button>
-<button id="pdf-btn">Download PDF</button>
-<div id="scan-result"></div>
-<script src="script.js"></script>
+    <header>
+        <h1>Scano</h1>
+    </header>
+
+    <main>
+        <div class="input-section">
+            <input type="text" id="urlInput" placeholder="Enter URL (e.g., https://cachelabs.io)">
+            <button id="scanBtn">Scan</button>
+            <button id="pdfBtn">Download PDF</button>
+        </div>
+
+        <div class="results-container">
+            <div id="result" class="results"></div>
+            <div id="dns-result" class="dns-panel"></div>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
 </body>
 </html>
 

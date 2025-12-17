@@ -1,5 +1,85 @@
-body { font-family: Arial; margin: 20px; }
-input { padding: 5px; width: 300px; }
-button { margin-left: 5px; padding: 5px 10px; }
-#scan-result { margin-top: 20px; }
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    background: #f5f5f5;
+    color: #333;
+}
+
+header {
+    background: #007acc;
+    color: white;
+    padding: 1rem;
+    text-align: center;
+}
+
+.input-section {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+.input-section input {
+    width: 300px;
+    padding: 0.5rem;
+}
+
+.input-section button {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    border: none;
+    background: #007acc;
+    color: white;
+    border-radius: 4px;
+}
+
+.results-container {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.results {
+    flex: 2;
+}
+
+.dns-panel {
+    flex: 1;
+    background: #fff;
+    padding: 1rem;
+    border-radius: 6px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.card {
+    background: #fff;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 6px;
+    box-shadow: 0 0 8px rgba(0,0,0,0.1);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table td, table th {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+}
+
+.ok { color: green; font-weight: bold; }
+.bad { color: red; font-weight: bold; }
+.warn { color: orange; font-weight: bold; }
+
+.loading { color: #007acc; font-weight: bold; }
+.error { color: red; font-weight: bold; }
+.summary { display: flex; gap: 1rem; margin-top: 0.5rem; }
+.score { font-weight: bold; }
+.badge { background: #eee; padding: 0.2rem 0.5rem; border-radius: 4px; }
+.badge.warn { background: #ffe0b3; }
+.recommend li { margin-bottom: 0.3rem; }
 

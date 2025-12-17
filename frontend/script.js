@@ -1,4 +1,4 @@
-const BACKEND_URL = "http://100.31.6.94:8000"; // change to EC2 IP:8000
+const BACKEND_URL = "http://3.236.124.40:8000"; // change to EC2 IP:8000
 
 const scanBtn = document.getElementById("scan-btn");
 const pdfBtn = document.getElementById("pdf-btn");

@@ -1,6 +1,7 @@
 fastapi
 uvicorn
-requests
+httpx
+pydantic
 reportlab
-dnspython
+python-multipart
 
