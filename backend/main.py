@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
@@ -16,12 +16,20 @@ app.add_middleware(
 
 @app.post("/api/scan")
 async def run_scan(payload: dict):
-    return await scan(payload["url"])
+    url = payload.get("url")
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required")
+
+    return await scan(url)
 
 @app.get("/api/scan/pdf")
 async def scan_pdf(url: str):
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required")
+
     data = await scan(url)
     pdf = build_pdf(data)
+
     return StreamingResponse(
         pdf,
         media_type="application/pdf",
