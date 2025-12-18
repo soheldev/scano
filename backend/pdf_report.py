@@ -1,144 +1,146 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.lib.colors import HexColor
 from datetime import datetime
 import io
+
+PRIMARY = HexColor("#111827")
+MUTED = HexColor("#6b7280")
+ACCENT = HexColor("#2563eb")
+GOOD = HexColor("#059669")
+BAD = HexColor("#dc2626")
+
+LEFT = 45
+RIGHT = 550
+TOP = 805
+LINE = 14.4
 
 def build_pdf(data):
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
     w, h = A4
+    y = TOP
 
-    def new_page():
-        c.showPage()
-        c.setFont("Helvetica", 11)
-        return h - 50
-
-    y = h - 50
-
-    # ======================
-    # Header
-    # ======================
-    c.setFont("Helvetica-Bold", 18)
-    c.drawString(50, y, "Web Security Scan Report")
-
-    y -= 30
-    c.setFont("Helvetica", 11)
-    c.drawString(50, y, f"Target: {data['target']}")
-    y -= 15
-    c.drawString(50, y, f"Score: {data['score']}/100")
-    y -= 15
-    c.drawString(50, y, f"Date: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
-
-    # ======================
-    # Security Headers
-    # ======================
-    y -= 30
-    if y < 100:
-        y = new_page()
-
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "Security Headers")
-
-    y -= 20
-    c.setFont("Helvetica", 11)
-    for k, v in data.get("headers", {}).items():
-        if y < 80:
-            y = new_page()
-        c.drawString(60, y, f"{k}: {'Present' if v else 'Missing'}")
-        y -= 15
-
-    # ======================
-    # TLS Information
-    # ======================
-    y -= 20
-    if y < 100:
-        y = new_page()
-
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "TLS Information")
-
-    y -= 20
-    c.setFont("Helvetica", 11)
-    for k, v in data.get("tls", {}).items():
-        if y < 80:
-            y = new_page()
-        c.drawString(60, y, f"{k.replace('_', ' ').title()}: {v}")
-        y -= 15
-
-    # ======================
-    # DNS Resolution Panel
-    # ======================
-    y -= 20
-    if y < 120:
-        y = new_page()
-
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "DNS Resolution")
-
-    y -= 20
-    c.setFont("Helvetica", 11)
-    dns = data.get("dns", {})
-
-    c.drawString(60, y, f"Domain: {dns.get('domain', '-')}")
-    y -= 15
-    c.drawString(60, y, f"Primary Resolved IP: {dns.get('resolved_ip', '-')}")
-    y -= 20
-
-    for r in dns.get("results", []):
-        if y < 100:
-            y = new_page()
-
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(60, y, f"Resolver: {r.get('resolver', '-')}")
-        y -= 15
-
-        c.setFont("Helvetica", 11)
-        c.drawString(80, y, f"Location: {r.get('location', '-')}")
-        y -= 15
-        c.drawString(80, y, f"Provider: {r.get('provider', '-')}")
-        y -= 15
-
-        ips = r.get("ips", [])
-        if ips:
-            c.drawString(80, y, "IPs:")
-            y -= 15
-            for ip in ips:
-                if y < 80:
-                    y = new_page()
-                c.drawString(100, y, f"- {ip}")
-                y -= 15
-        else:
-            c.drawString(80, y, "IPs: None")
-            y -= 15
-
+    def hr():
+        nonlocal y
+        c.setStrokeColor(MUTED)
+        c.line(LEFT, y, RIGHT, y)
         y -= 10
 
-    # ======================
-    # Recommendations
-    # ======================
+    c.setFont("Helvetica-Bold", 20)
+    c.setFillColor(PRIMARY)
+    c.drawString(LEFT, y, "Web Security Scan Report")
+
+    c.setFont("Helvetica-Bold", 22)
+    c.setFillColor(ACCENT)
+    c.drawRightString(RIGHT, y, f"{data['score']}/100")
+
+    y -= 26
+    c.setFont("Helvetica", 10)
+    c.setFillColor(MUTED)
+    c.drawString(LEFT, y, f"Target: {data['target']}")
+    c.drawRightString(RIGHT, y, datetime.utcnow().strftime("%d %b %Y %H:%M UTC"))
+
+    y -= 12
+    hr()
+
+    c.setFont("Helvetica-Bold", 12)
+    c.setFillColor(PRIMARY)
+    c.drawString(LEFT, y, "Executive Summary")
     y -= 10
-    if y < 120:
-        y = new_page()
+    hr()
 
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "Recommendations")
+    c.setFont("Helvetica", 10)
+    tls = data["tls"].get("tls_version", "N/A")
+    csp = data.get("csp_status", "Unknown")
+    cdn = data.get("cdn", "Unknown")
 
-    y -= 20
-    c.setFont("Helvetica", 11)
+    summary = [
+        ("TLS Version", tls),
+        ("Content Security Policy", csp),
+        ("CDN / Proxy", cdn),
+        ("Security Headers", f"{sum(data['headers'].values())}/{len(data['headers'])}")
+    ]
 
-    recs = data.get("recommendations", [])
-    if not recs:
-        c.drawString(60, y, "No recommendations 🎉")
-    else:
-        for r in recs:
-            if y < 80:
-                y = new_page()
-            c.drawString(60, y, f"- {r}")
-            y -= 15
+    for k, v in summary:
+        c.setFillColor(PRIMARY)
+        c.drawString(LEFT + 5, y, f"{k}:")
+        c.setFillColor(MUTED)
+        c.drawString(200, y, str(v))
+        y -= LINE
 
-    # ======================
-    # Finalize
-    # ======================
+    y -= 8
+
+    c.setFont("Helvetica-Bold", 12)
+    c.setFillColor(PRIMARY)
+    c.drawString(LEFT, y, "TLS / SSL Configuration")
+    y -= 10
+    hr()
+
+    c.setFont("Helvetica", 10)
+    tls = data["tls"]
+
+    for k, v in [
+        ("Issuer", tls.get("issuer", "-")),
+        ("Valid From", tls.get("valid_from", "-")),
+        ("Valid To", tls.get("valid_to", "-")),
+        ("Days Remaining", tls.get("days_remaining", "-")),
+        ("TLS Version", tls.get("tls_version", "-")),
+    ]:
+        c.setFillColor(PRIMARY)
+        c.drawString(LEFT + 5, y, f"{k}:")
+        c.setFillColor(MUTED)
+        c.drawString(200, y, str(v))
+        y -= LINE
+
+    y -= 8
+
+    c.setFont("Helvetica-Bold", 12)
+    c.setFillColor(PRIMARY)
+    c.drawString(LEFT, y, "DNS Resolution & Geo Location")
+    y -= 10
+    hr()
+
+    dns = data.get("dns", {})
+    c.setFont("Helvetica", 10)
+    c.setFillColor(MUTED)
+    c.drawString(LEFT + 5, y, f"Domain: {dns.get('domain', '-')}")
+    c.drawRightString(RIGHT, y, f"Primary IP: {dns.get('resolved_ip', '-')}")
+    y -= LINE + 2
+
+    for r in dns.get("results", []):
+        c.setFont("Helvetica-Bold", 10)
+        c.setFillColor(PRIMARY)
+        c.drawString(LEFT + 5, y, r["resolver"])
+        y -= LINE
+
+        c.setFont("Helvetica", 10)
+        c.setFillColor(MUTED)
+        c.drawString(LEFT + 20, y, f"Location: {r.get('location', '-')}")
+        c.drawString(260, y, f"Provider: {r.get('provider', '-')}")
+        y -= LINE
+
+        c.drawString(LEFT + 20, y, f"IPs: {', '.join(r.get('ips', []))}")
+        y -= LINE + 6
+
+    c.setFont("Helvetica-Bold", 12)
+    c.setFillColor(PRIMARY)
+    c.drawString(LEFT, y, "HTTP Security Headers")
+    y -= 10
+    hr()
+
+    c.setFont("Helvetica", 10)
+    for k, v in data["headers"].items():
+        c.setFillColor(PRIMARY)
+        c.drawString(LEFT + 5, y, k)
+        c.setFillColor(GOOD if v else BAD)
+        c.drawRightString(RIGHT, y, "Present" if v else "Missing")
+        y -= LINE
+
+    c.setFont("Helvetica", 8)
+    c.setFillColor(MUTED)
+    c.drawCentredString(w / 2, 25, "Generated by Scano • Automated Web Security Scanner")
+
     c.showPage()
     c.save()
     buf.seek(0)
