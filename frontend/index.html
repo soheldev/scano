@@ -3,44 +3,48 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Scano - Web Security Scanner</title>
+    <title>Scano – Web Security Scanner</title>
     <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-<header>
-    <h1>Scano</h1>
+<header class="topbar">
+    <h1>🛡️ Scano</h1>
+    <span class="tagline">Web Guard </span>
 </header>
 
-<main>
-    <div class="input-section">
+<main class="container">
+
+    <!-- INPUT -->
+    <section class="input-section">
         <input
             type="text"
             id="urlInput"
-            placeholder="Enter URL (e.g. https://cachelabs.io)"
+            placeholder="https://example.com"
         />
         <button id="scanBtn">Scan</button>
-        <button id="pdfBtn">Download PDF</button>
-    </div>
+        <button id="pdfBtn" class="secondary">PDF</button>
+    </section>
 
-    <div class="results-container">
+    <!-- SUMMARY -->
+    <section id="result" class="summary-card"></section>
 
-        <!-- MAIN RESULT -->
-        <div class="results">
-            <div id="result"></div>
+    <!-- GRID -->
+    <section class="grid">
+        <div id="tls" class="card"></div>
+        <div id="headers" class="card"></div>
+        <div id="infra" class="card"></div>
+        <div id="recommendations" class="card"></div>
+    </section>
 
-            <div id="tls" class="card"></div>
-            <div id="headers" class="card"></div>
-            <div id="csp" class="card"></div>
-            <div id="infra" class="card"></div>
-            <div id="recommendations" class="card"></div>
-        </div>
+    <!-- DNS -->
+    <section id="dns" class="card dns"></section>
 
-        <!-- DNS PANEL -->
-        <div id="dns" class="dns-panel"></div>
-
-    </div>
 </main>
+
+<footer>
+    <p>© WebGuard • Security made visible</p>
+</footer>
 
 <script src="app.js"></script>
 </body>

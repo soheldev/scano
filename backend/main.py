@@ -33,6 +33,6 @@ async def scan_pdf(url: str):
     return StreamingResponse(
         pdf,
         media_type="application/pdf",
-        headers={"Content-Disposition": "inline; filename=scan_report.pdf"}
+        headers={"Content-Disposition": "inline; filename=scan_report.pdf"},
     )
 

@@ -15,14 +15,14 @@ HEADERS = [
     "x-frame-options",
     "x-content-type-options",
     "referrer-policy",
-    "permissions-policy"
+    "permissions-policy",
 ]
 
 DNS_RESOLVERS = {
     "Google": "8.8.8.8",
     "Cloudflare": "1.1.1.1",
     "Quad9": "9.9.9.9",
-    "OpenDNS": "208.67.222.222"
+    "OpenDNS": "208.67.222.222",
 }
 
 def normalize(url: str):
@@ -61,14 +61,19 @@ def geo_lookup(ip):
             city = r.city.name or "Unknown"
             country = r.country.name or "Unknown"
     except:
-        pass
+        city = country = "Unknown"
 
     try:
         with geoip2.database.Reader(ASN_DB) as reader:
             r = reader.asn(ip)
             provider = r.autonomous_system_organization or "Unknown"
     except:
-        pass
+        provider = "Unknown"
+
+    # Friendly location for CDN IPs
+    cdn_providers = ["Cloudflare", "Akamai", "Fastly", "Amazon", "Microsoft"]
+    if any(cdn.lower() in (provider or "").lower() for cdn in cdn_providers):
+        city = country = f"Behind {provider} / Location not revealed"
 
     return city, country, provider
 
@@ -94,22 +99,44 @@ def dns_panel(domain):
                 "resolver": resolver_name,
                 "location": f"{city}, {country}",
                 "provider": provider,
-                "ips": ips
+                "ips": ips,
             })
         except:
             results.append({
                 "resolver": resolver_name,
                 "location": "Unknown",
                 "provider": "Unknown",
-                "ips": []
+                "ips": [],
             })
 
     return {
         "domain": domain,
         "resolved_ip": primary_ip,
-        "results": results
+        "results": results,
     }
 
+# =========================
+# SERVER DETECTION
+# =========================
+def detect_server(headers: dict) -> str | None:
+    server = headers.get("server")
+    if not server:
+        return None
+
+    s = server.lower()
+    if "cloudflare" in s:
+        return "Cloudflare"
+    if "nginx" in s:
+        return "Nginx"
+    if "apache" in s:
+        return "Apache"
+    if "iis" in s:
+        return "Microsoft IIS"
+    return server
+
+# =========================
+# MAIN SCAN FUNCTION
+# =========================
 async def scan(url):
     url = normalize(url)
     host = urlparse(url).hostname
@@ -120,13 +147,12 @@ async def scan(url):
     score = sum(headers.values()) * 10
     if tls.get("tls_version") == "TLSv1.3":
         score += 30
-
     score = min(score, 100)
 
     csp_header = raw.get("content-security-policy", "")
     csp = {
         "status": "Weak" if "unsafe-inline" in csp_header else "Strong",
-        "issues": ["Remove unsafe-inline from CSP"] if "unsafe-inline" in csp_header else []
+        "issues": ["Remove unsafe-inline from CSP"] if "unsafe-inline" in csp_header else [],
     }
 
     recommendations = []
@@ -134,7 +160,6 @@ async def scan(url):
         recommendations.append("Harden Content Security Policy")
 
     cdn = "Cloudflare" if "cf-ray" in raw else "Unknown"
-
     dns = dns_panel(host)
 
     return {
@@ -144,9 +169,10 @@ async def scan(url):
         "csp": csp,
         "tls": tls,
         "infrastructure": {
-            "cdn": cdn
+            "cdn": cdn,
+            "server": detect_server(raw),
         },
         "dns": dns,
-        "recommendations": recommendations
+        "recommendations": recommendations,
     }
 
