@@ -1,6 +1,13 @@
-import httpx, ssl, socket
+import httpx
+import ssl
+import socket
+import dns.resolver
 from urllib.parse import urlparse
 from datetime import datetime
+import geoip2.database
+
+CITY_DB = "/geoip/GeoLite2-City.mmdb"
+ASN_DB = "/geoip/GeoLite2-ASN.mmdb"
 
 HEADERS = [
     "content-security-policy",
@@ -10,6 +17,13 @@ HEADERS = [
     "referrer-policy",
     "permissions-policy"
 ]
+
+DNS_RESOLVERS = {
+    "Google": "8.8.8.8",
+    "Cloudflare": "1.1.1.1",
+    "Quad9": "9.9.9.9",
+    "OpenDNS": "208.67.222.222"
+}
 
 def normalize(url: str):
     return url if url.startswith("http") else "https://" + url
@@ -26,13 +40,75 @@ def tls_info(host):
             cert = ss.getpeercert()
             exp = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y %Z")
             start = datetime.strptime(cert["notBefore"], "%b %d %H:%M:%S %Y %Z")
+
+            issuer = dict(x[0] for x in cert["issuer"]).get("organizationName")
+
             return {
-                "issuer": dict(x[0] for x in cert["issuer"])["organizationName"],
-                "valid_from": start.strftime("%b %d %Y"),
-                "valid_to": exp.strftime("%b %d %Y"),
+                "issuer": issuer,
+                "valid_from": start.strftime("%Y-%m-%d"),
+                "valid_to": exp.strftime("%Y-%m-%d"),
                 "days_remaining": (exp - datetime.utcnow()).days,
-                "tls_version": ss.version()
+                "tls_version": ss.version(),
+                "ssl_provider": issuer
             }
+
+def geo_lookup(ip):
+    city = country = provider = "Unknown"
+
+    try:
+        with geoip2.database.Reader(CITY_DB) as reader:
+            r = reader.city(ip)
+            city = r.city.name or "Unknown"
+            country = r.country.name or "Unknown"
+    except:
+        pass
+
+    try:
+        with geoip2.database.Reader(ASN_DB) as reader:
+            r = reader.asn(ip)
+            provider = r.autonomous_system_organization or "Unknown"
+    except:
+        pass
+
+    return city, country, provider
+
+def dns_panel(domain):
+    results = []
+    primary_ip = None
+
+    for resolver_name, ns in DNS_RESOLVERS.items():
+        try:
+            r = dns.resolver.Resolver()
+            r.nameservers = [ns]
+            answers = r.resolve(domain, "A", lifetime=4)
+
+            ips = sorted({str(a) for a in answers})
+            if not primary_ip and ips:
+                primary_ip = ips[0]
+
+            city = country = provider = None
+            if ips:
+                city, country, provider = geo_lookup(ips[0])
+
+            results.append({
+                "resolver": resolver_name,
+                "location": f"{city}, {country}",
+                "provider": provider,
+                "ips": ips
+            })
+        except:
+            results.append({
+                "resolver": resolver_name,
+                "location": "Unknown",
+                "provider": "Unknown",
+                "ips": []
+            })
+
+    return {
+        "domain": domain,
+        "resolved_ip": primary_ip,
+        "results": results
+    }
 
 async def scan(url):
     url = normalize(url)
@@ -42,25 +118,35 @@ async def scan(url):
     tls = tls_info(host)
 
     score = sum(headers.values()) * 10
-    if tls["tls_version"] == "TLSv1.3":
+    if tls.get("tls_version") == "TLSv1.3":
         score += 30
 
-    csp = raw.get("content-security-policy", "")
-    csp_status = "Weak" if "unsafe-inline" in csp else "Strong"
+    score = min(score, 100)
 
-    recs = []
-    if csp_status == "Weak":
-        recs.append("Harden CSP headers")
+    csp_header = raw.get("content-security-policy", "")
+    csp = {
+        "status": "Weak" if "unsafe-inline" in csp_header else "Strong",
+        "issues": ["Remove unsafe-inline from CSP"] if "unsafe-inline" in csp_header else []
+    }
+
+    recommendations = []
+    if csp["status"] == "Weak":
+        recommendations.append("Harden Content Security Policy")
 
     cdn = "Cloudflare" if "cf-ray" in raw else "Unknown"
 
+    dns = dns_panel(host)
+
     return {
         "target": url,
-        "score": min(score, 100),
+        "score": score,
         "headers": headers,
-        "csp_status": csp_status,
+        "csp": csp,
         "tls": tls,
-        "cdn": cdn,
-        "recommendations": recs
+        "infrastructure": {
+            "cdn": cdn
+        },
+        "dns": dns,
+        "recommendations": recommendations
     }
 

@@ -1,50 +1,145 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.lib.colors import HexColor
 from datetime import datetime
 import io
+
+PRIMARY = HexColor("#111827")
+MUTED = HexColor("#6b7280")
+ACCENT = HexColor("#2563eb")
+GOOD = HexColor("#059669")
+BAD = HexColor("#dc2626")
+
+LEFT = 45
+RIGHT = 550
+TOP = 805
+LINE = 14.4
 
 def build_pdf(data):
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
     w, h = A4
+    y = TOP
 
-    c.setFont("Helvetica-Bold", 18)
-    c.drawString(50, h - 50, "Web Security Scan Report")
+    def hr():
+        nonlocal y
+        c.setStrokeColor(MUTED)
+        c.line(LEFT, y, RIGHT, y)
+        y -= 10
 
-    c.setFont("Helvetica", 11)
-    c.drawString(50, h - 80, f"Target: {data['target']}")
-    c.drawString(50, h - 100, f"Score: {data['score']}/100")
-    c.drawString(50, h - 120, f"Date: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
+    c.setFont("Helvetica-Bold", 20)
+    c.setFillColor(PRIMARY)
+    c.drawString(LEFT, y, "Web Security Scan Report")
 
-    y = h - 160
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "Security Headers")
+    c.setFont("Helvetica-Bold", 22)
+    c.setFillColor(ACCENT)
+    c.drawRightString(RIGHT, y, f"{data['score']}/100")
 
-    y -= 20
-    c.setFont("Helvetica", 11)
+    y -= 26
+    c.setFont("Helvetica", 10)
+    c.setFillColor(MUTED)
+    c.drawString(LEFT, y, f"Target: {data['target']}")
+    c.drawRightString(RIGHT, y, datetime.utcnow().strftime("%d %b %Y %H:%M UTC"))
+
+    y -= 12
+    hr()
+
+    c.setFont("Helvetica-Bold", 12)
+    c.setFillColor(PRIMARY)
+    c.drawString(LEFT, y, "Executive Summary")
+    y -= 10
+    hr()
+
+    c.setFont("Helvetica", 10)
+    tls = data["tls"].get("tls_version", "N/A")
+    csp = data.get("csp_status", "Unknown")
+    cdn = data.get("cdn", "Unknown")
+
+    summary = [
+        ("TLS Version", tls),
+        ("Content Security Policy", csp),
+        ("CDN / Proxy", cdn),
+        ("Security Headers", f"{sum(data['headers'].values())}/{len(data['headers'])}")
+    ]
+
+    for k, v in summary:
+        c.setFillColor(PRIMARY)
+        c.drawString(LEFT + 5, y, f"{k}:")
+        c.setFillColor(MUTED)
+        c.drawString(200, y, str(v))
+        y -= LINE
+
+    y -= 8
+
+    c.setFont("Helvetica-Bold", 12)
+    c.setFillColor(PRIMARY)
+    c.drawString(LEFT, y, "TLS / SSL Configuration")
+    y -= 10
+    hr()
+
+    c.setFont("Helvetica", 10)
+    tls = data["tls"]
+
+    for k, v in [
+        ("Issuer", tls.get("issuer", "-")),
+        ("Valid From", tls.get("valid_from", "-")),
+        ("Valid To", tls.get("valid_to", "-")),
+        ("Days Remaining", tls.get("days_remaining", "-")),
+        ("TLS Version", tls.get("tls_version", "-")),
+    ]:
+        c.setFillColor(PRIMARY)
+        c.drawString(LEFT + 5, y, f"{k}:")
+        c.setFillColor(MUTED)
+        c.drawString(200, y, str(v))
+        y -= LINE
+
+    y -= 8
+
+    c.setFont("Helvetica-Bold", 12)
+    c.setFillColor(PRIMARY)
+    c.drawString(LEFT, y, "DNS Resolution & Geo Location")
+    y -= 10
+    hr()
+
+    dns = data.get("dns", {})
+    c.setFont("Helvetica", 10)
+    c.setFillColor(MUTED)
+    c.drawString(LEFT + 5, y, f"Domain: {dns.get('domain', '-')}")
+    c.drawRightString(RIGHT, y, f"Primary IP: {dns.get('resolved_ip', '-')}")
+    y -= LINE + 2
+
+    for r in dns.get("results", []):
+        c.setFont("Helvetica-Bold", 10)
+        c.setFillColor(PRIMARY)
+        c.drawString(LEFT + 5, y, r["resolver"])
+        y -= LINE
+
+        c.setFont("Helvetica", 10)
+        c.setFillColor(MUTED)
+        c.drawString(LEFT + 20, y, f"Location: {r.get('location', '-')}")
+        c.drawString(260, y, f"Provider: {r.get('provider', '-')}")
+        y -= LINE
+
+        c.drawString(LEFT + 20, y, f"IPs: {', '.join(r.get('ips', []))}")
+        y -= LINE + 6
+
+    c.setFont("Helvetica-Bold", 12)
+    c.setFillColor(PRIMARY)
+    c.drawString(LEFT, y, "HTTP Security Headers")
+    y -= 10
+    hr()
+
+    c.setFont("Helvetica", 10)
     for k, v in data["headers"].items():
-        c.drawString(60, y, f"{k}: {'Present' if v else 'Missing'}")
-        y -= 15
+        c.setFillColor(PRIMARY)
+        c.drawString(LEFT + 5, y, k)
+        c.setFillColor(GOOD if v else BAD)
+        c.drawRightString(RIGHT, y, "Present" if v else "Missing")
+        y -= LINE
 
-    y -= 20
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "TLS Information")
-
-    y -= 20
-    for k, v in data["tls"].items():
-        c.setFont("Helvetica", 11)
-        c.drawString(60, y, f"{k}: {v}")
-        y -= 15
-
-    y -= 20
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "Recommendations")
-
-    y -= 20
-    c.setFont("Helvetica", 11)
-    for r in data["recommendations"]:
-        c.drawString(60, y, f"- {r}")
-        y -= 15
+    c.setFont("Helvetica", 8)
+    c.setFillColor(MUTED)
+    c.drawCentredString(w / 2, 25, "Generated by Scano • Automated Web Security Scanner")
 
     c.showPage()
     c.save()

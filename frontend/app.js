@@ -1,15 +1,28 @@
 const BACKEND_URL = `${window.location.protocol}//${window.location.hostname}:8000`;
-const result = document.getElementById("result");
-const dnsDiv = document.getElementById("dns-result");
+
 const scanBtn = document.getElementById("scanBtn");
 const pdfBtn = document.getElementById("pdfBtn");
+const urlInput = document.getElementById("urlInput");
 
-scanBtn.onclick = async () => {
-    const url = document.getElementById("urlInput").value.trim();
-    if (!url) return alert("Enter a URL");
+const resultDiv = document.getElementById("result");
+const tlsDiv = document.getElementById("tls");
+const headersDiv = document.getElementById("headers");
+const cspDiv = document.getElementById("csp");
+const dnsDiv = document.getElementById("dns");
+const infraDiv = document.getElementById("infra");
+const recDiv = document.getElementById("recommendations");
 
-    result.innerHTML = "<p class='loading'>Scanning...</p>";
-    dnsDiv.innerHTML = "<p class='loading'>Loading DNS info...</p>";
+scanBtn.addEventListener("click", scan);
+
+async function scan() {
+    const url = urlInput.value.trim();
+    if (!url) {
+        alert("Enter a URL");
+        return;
+    }
+
+    resetUI();
+    resultDiv.innerHTML = "<p class='loading'>Scanning...</p>";
 
     try {
         const res = await fetch(`${BACKEND_URL}/api/scan`, {
@@ -21,47 +34,118 @@ scanBtn.onclick = async () => {
         if (!res.ok) throw new Error("Scan failed");
 
         const data = await res.json();
-        render(data);
-        renderDNS(data.dns);
+        renderAll(data);
+
     } catch (err) {
         console.error(err);
-        result.innerHTML = "<p class='error'>Scan failed</p>";
-        dnsDiv.innerHTML = "<p class='error'>DNS info not available</p>";
+        resultDiv.innerHTML = "<p class='error'>Scan failed</p>";
     }
-};
+}
 
 pdfBtn.onclick = () => {
-    const url = document.getElementById("urlInput").value.trim();
+    const url = urlInput.value.trim();
     if (!url) return alert("Enter a URL");
     window.open(`${BACKEND_URL}/api/scan/pdf?url=${encodeURIComponent(url)}`);
 };
 
-function render(d) {
-    result.innerHTML = `
-        <div class="card">
-            <h2>${d.target}</h2>
-            <div class="summary">
-                <span class="score">Score: ${d.score}/100</span>
-                <span class="badge">TLS: ${d.tls?.tls_version || "N/A"} (${d.tls?.days_remaining || "?"} days)</span>
-                <span class="badge warn">CSP: ${d.csp?.status || "Unknown"}</span>
-            </div>
-        </div>
+function resetUI() {
+    resultDiv.innerHTML = "";
+    tlsDiv.innerHTML = "";
+    headersDiv.innerHTML = "";
+    cspDiv.innerHTML = "";
+    dnsDiv.innerHTML = "";
+    infraDiv.innerHTML = "";
+    recDiv.innerHTML = "";
+}
 
-        ${tlsBlock(d.tls)}
-        ${headersBlock(d.headers)}
-        ${cspBlock(d.csp)}
-        ${infraBlock(d.infrastructure)}
-        ${recommendationsBlock(d.recommendations)}
+function renderAll(data) {
+    renderSummary(data);
+    renderTLS(data.tls);
+    renderHeaders(data.headers);
+    renderCSP(data.csp);
+    renderDNS(data.dns);
+    renderInfra(data.infrastructure || { cdn: data.cdn });
+    renderRecommendations(data.recommendations);
+}
+
+/* =========================
+   SUMMARY
+========================= */
+function renderSummary(data) {
+    resultDiv.innerHTML = `
+        <h2>${data.target}</h2>
+        <p>
+            <strong>Score:</strong> ${data.score}/100 &nbsp;
+            <strong>TLS:</strong> ${data.tls?.tls_version || "N/A"} &nbsp;
+            <strong>CSP:</strong>
+            <span class="${data.csp_status === "Weak" ? "warn" : "ok"}">
+                ${data.csp_status || "Unknown"}
+            </span>
+        </p>
     `;
 }
 
+/* =========================
+   TLS / SSL
+========================= */
+function renderTLS(tls) {
+    if (!tls) return;
+
+    tlsDiv.innerHTML = `
+        <h3>TLS / SSL Information</h3>
+        <table>
+            <tr><td>Issuer</td><td>${tls.issuer || "-"}</td></tr>
+            <tr><td>Valid From</td><td>${tls.valid_from || "-"}</td></tr>
+            <tr><td>Valid To</td><td>${tls.valid_to || "-"}</td></tr>
+            <tr><td>Days Remaining</td><td>${tls.days_remaining ?? "-"}</td></tr>
+            <tr><td>TLS Version</td><td>${tls.tls_version || "-"}</td></tr>
+        </table>
+    `;
+}
+
+/* =========================
+   SECURITY HEADERS
+========================= */
+function renderHeaders(headers) {
+    if (!headers) return;
+
+    headersDiv.innerHTML = `
+        <h3>Security Headers</h3>
+        <table>
+            ${Object.entries(headers).map(([k, v]) => `
+                <tr>
+                    <td>${k}</td>
+                    <td class="${v ? "ok" : "bad"}">
+                        ${v ? "Present" : "Missing"}
+                    </td>
+                </tr>
+            `).join("")}
+        </table>
+    `;
+}
+
+/* =========================
+   CSP
+========================= */
+function renderCSP() {
+    // CSP analysis already summarized in score section
+    return;
+}
+
+/* =========================
+   DNS PANEL (DNS-ONLY)
+========================= */
 function renderDNS(dns) {
-    if (!dns) {
-        dnsDiv.innerHTML = "<p>No DNS information available</p>";
+    if (!dns || !dns.results || dns.results.length === 0) {
+        dnsDiv.innerHTML = `
+            <h3>DNS Resolution</h3>
+            <p>No DNS information available</p>
+        `;
         return;
     }
 
-    let html = `<h3>DNS Resolution for ${dns.domain}</h3>
+    dnsDiv.innerHTML = `
+        <h3>DNS Resolution for ${dns.domain}</h3>
         <table>
             <tr>
                 <th>Resolver</th>
@@ -72,73 +156,49 @@ function renderDNS(dns) {
             ${dns.results.map(r => `
                 <tr>
                     <td>${r.resolver}</td>
-                    <td>${r.city}, ${r.country}</td>
-                    <td>${r.provider}</td>
-                    <td>${r.ips.join(", ") || "-"}</td>
-                </tr>`).join("")}
+                    <td>${r.location || "-"}</td>
+                    <td>${r.provider || "-"}</td>
+                    <td>${(r.ips || []).join("<br>")}</td>
+                </tr>
+            `).join("")}
         </table>
-        <p>Resolves to: <strong>${dns.resolved_ip || "-"}</strong></p>
-        <p>Server Type: <strong>${dns.server_type || "-"}</strong></p>
-        <p>Certificate Expiration: <strong>${dns.cert_days_remaining || "N/A"} days</strong></p>
+
+        <p style="margin-top:10px">
+            <strong>Primary Resolved IP:</strong>
+            ${dns.resolved_ip || "-"}
+        </p>
     `;
-    dnsDiv.innerHTML = html;
 }
 
-function tlsBlock(t) {
-    if (!t) return "";
-    return `
-    <div class="card">
-        <h3>TLS Information</h3>
-        <table>
-            <tr><td>Issuer</td><td>${t.issuer}</td></tr>
-            <tr><td>Valid From</td><td>${t.valid_from}</td></tr>
-            <tr><td>Valid To</td><td>${t.valid_to}</td></tr>
-            <tr><td>Days Remaining</td><td>${t.days_remaining}</td></tr>
-            <tr><td>TLS Version</td><td>${t.tls_version}</td></tr>
-        </table>
-    </div>`;
-}
+/* =========================
+   INFRASTRUCTURE
+========================= */
+function renderInfra(infra) {
+    if (!infra) return;
 
-function headersBlock(h) {
-    if (!h) return "";
-    return `
-    <div class="card">
-        <h3>Security Headers</h3>
-        <table>
-            ${Object.entries(h).map(([k,v]) => `
-                <tr>
-                    <td>${k}</td>
-                    <td class="${v ? "ok" : "bad"}">${v ? "Present" : "Missing"}</td>
-                </tr>`).join("")}
-        </table>
-    </div>`;
-}
-
-function cspBlock(c) {
-    if (!c) return "";
-    return `
-    <div class="card">
-        <h3>Content Security Policy</h3>
-        <p>Status: <strong class="warn">${c.status}</strong></p>
-        <ul>${c.issues.map(i => `<li>${i}</li>`).join("")}</ul>
-    </div>`;
-}
-
-function infraBlock(i) {
-    if (!i) return "";
-    return `
-    <div class="card">
+    infraDiv.innerHTML = `
         <h3>Infrastructure</h3>
-        <p>CDN / Proxy: <strong>${i.cdn}</strong></p>
-    </div>`;
+        <p>CDN / Proxy: <strong>${infra.cdn || "-"}</strong></p>
+    `;
 }
 
-function recommendationsBlock(r) {
-    if (!r || r.length === 0) return "";
-    return `
-    <div class="card">
+/* =========================
+   RECOMMENDATIONS
+========================= */
+function renderRecommendations(recs) {
+    if (!recs || recs.length === 0) {
+        recDiv.innerHTML = `
+            <h3>Recommendations</h3>
+            <p>No recommendations 🎉</p>
+        `;
+        return;
+    }
+
+    recDiv.innerHTML = `
         <h3>Recommendations</h3>
-        <ul class="recommend">${r.map(x => `<li>${x}</li>`).join("")}</ul>
-    </div>`;
+        <ul>
+            ${recs.map(r => `<li>${r}</li>`).join("")}
+        </ul>
+    `;
 }
 

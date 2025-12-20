@@ -1,3 +1,5 @@
+geoip2
+dnspython
 fastapi
 uvicorn
 httpx

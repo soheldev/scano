@@ -1,13 +1,19 @@
-version: "3.8"
 services:
   backend:
     build: ./backend
+    container_name: scano-backend
     ports:
       - "8000:8000"
+    volumes:
+      - ./geoip:/geoip:ro
+    restart: unless-stopped
+
   frontend:
     build: ./frontend
+    container_name: scano-frontend
     ports:
       - "80:3000"
     depends_on:
       - backend
+    restart: unless-stopped
 
