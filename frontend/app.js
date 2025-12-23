@@ -1,204 +1,169 @@
 const BACKEND_URL = `${window.location.protocol}//${window.location.hostname}:8000`;
 
 const scanBtn = document.getElementById("scanBtn");
-const pdfBtn = document.getElementById("pdfBtn");
-const urlInput = document.getElementById("urlInput");
+const pdfBtn  = document.getElementById("pdfBtn");
 
-const resultDiv = document.getElementById("result");
-const tlsDiv = document.getElementById("tls");
-const headersDiv = document.getElementById("headers");
-const cspDiv = document.getElementById("csp");
-const dnsDiv = document.getElementById("dns");
-const infraDiv = document.getElementById("infra");
-const recDiv = document.getElementById("recommendations");
+/* =========================
+   RESET UI (DNS SAFE)
+========================= */
+function resetUI() {
+    document.getElementById("scoreValue").innerText = "--";
+    document.getElementById("targetDisplay").innerText = "Scanning...";
+    document.getElementById("targetSub").innerText = "Please wait…";
+    document.getElementById("scoreGauge").className = "gauge";
 
-scanBtn.addEventListener("click", scan);
+    ["tls","headers","infra","recommendations"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = "<p>Loading…</p>";
+    });
 
+    // DNS placeholder (DO NOT destroy structure)
+    document.getElementById("dns").innerHTML = `
+        <h3><i class="fas fa-globe"></i> DNS</h3>
+        <p>Resolving DNS…</p>
+    `;
+}
+
+/* =========================
+   SCAN
+========================= */
 async function scan() {
-    const url = urlInput.value.trim();
-    if (!url) {
-        alert("Enter a URL");
-        return;
-    }
+    const url = document.getElementById("urlInput").value.trim();
+    if (!url) return alert("Enter a URL");
 
     resetUI();
-    resultDiv.innerHTML = "<p class='loading'>Scanning...</p>";
 
-    try {
-        const res = await fetch(`${BACKEND_URL}/api/scan`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url })
-        });
+    const res = await fetch(`${BACKEND_URL}/api/scan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+    });
 
-        if (!res.ok) throw new Error("Scan failed");
-
-        const data = await res.json();
-        renderAll(data);
-
-    } catch (err) {
-        console.error(err);
-        resultDiv.innerHTML = "<p class='error'>Scan failed</p>";
-    }
+    const data = await res.json();
+    renderAll(data);
 }
 
-pdfBtn.onclick = () => {
-    const url = urlInput.value.trim();
-    if (!url) return alert("Enter a URL");
-    window.open(`${BACKEND_URL}/api/scan/pdf?url=${encodeURIComponent(url)}`);
-};
+/* =========================
+   PDF
+========================= */
+function downloadPDF() {
+    const url = document.getElementById("urlInput").value.trim();
+    if (!url) return alert("Enter a URL first");
 
-function resetUI() {
-    resultDiv.innerHTML = "";
-    tlsDiv.innerHTML = "";
-    headersDiv.innerHTML = "";
-    cspDiv.innerHTML = "";
-    dnsDiv.innerHTML = "";
-    infraDiv.innerHTML = "";
-    recDiv.innerHTML = "";
+    window.open(
+        `${BACKEND_URL}/api/scan/pdf?url=${encodeURIComponent(url)}`,
+        "_blank"
+    );
 }
 
+/* =========================
+   RENDER
+========================= */
 function renderAll(data) {
-    renderSummary(data);
+    renderHero(data);
     renderTLS(data.tls);
     renderHeaders(data.headers);
-    renderCSP(data.csp);
+    renderInfra(data.infrastructure);
     renderDNS(data.dns);
-    renderInfra(data.infrastructure || { cdn: data.cdn });
     renderRecommendations(data.recommendations);
 }
 
-/* =========================
-   SUMMARY
-========================= */
-function renderSummary(data) {
-    resultDiv.innerHTML = `
-        <h2>${data.target}</h2>
-        <p>
-            <strong>Score:</strong> ${data.score}/100 &nbsp;
-            <strong>TLS:</strong> ${data.tls?.tls_version || "N/A"} &nbsp;
-            <strong>CSP:</strong>
-            <span class="${data.csp_status === "Weak" ? "warn" : "ok"}">
-                ${data.csp_status || "Unknown"}
-            </span>
-        </p>
-    `;
+/* HERO */
+function renderHero(data) {
+    const gauge = document.getElementById("scoreGauge");
+    document.getElementById("scoreValue").innerText = data.score;
+    gauge.className = `gauge ${data.score < 50 ? "bad" : "ok"}`;
+    document.getElementById("targetDisplay").innerText = data.target;
+    document.getElementById("targetSub").innerText = "Scan completed";
 }
 
-/* =========================
-   TLS / SSL
-========================= */
+/* TLS */
 function renderTLS(tls) {
-    if (!tls) return;
-
-    tlsDiv.innerHTML = `
-        <h3>TLS / SSL Information</h3>
+    document.getElementById("tls").innerHTML = `
+        <h3><i class="fas fa-lock"></i> TLS</h3>
         <table>
             <tr><td>Issuer</td><td>${tls.issuer || "-"}</td></tr>
-            <tr><td>Valid From</td><td>${tls.valid_from || "-"}</td></tr>
-            <tr><td>Valid To</td><td>${tls.valid_to || "-"}</td></tr>
-            <tr><td>Days Remaining</td><td>${tls.days_remaining ?? "-"}</td></tr>
-            <tr><td>TLS Version</td><td>${tls.tls_version || "-"}</td></tr>
+            <tr><td>Version</td><td>${tls.tls_version || "-"}</td></tr>
+            <tr><td>Expires (days)</td><td>${tls.days_remaining ?? "-"}</td></tr>
         </table>
     `;
 }
 
-/* =========================
-   SECURITY HEADERS
-========================= */
+/* HEADERS */
 function renderHeaders(headers) {
-    if (!headers) return;
+    const rows = Object.entries(headers).map(([k,v]) => `
+        <tr>
+            <td>${k}</td>
+            <td class="status-badge ${v ? "present":"missing"}">
+                ${v ? "Present":"Missing"}
+            </td>
+        </tr>
+    `).join("");
 
-    headersDiv.innerHTML = `
-        <h3>Security Headers</h3>
+    document.getElementById("headers").innerHTML = `
+        <h3><i class="fas fa-list-check"></i> Headers</h3>
+        <table>${rows}</table>
+    `;
+}
+
+/* INFRA */
+function renderInfra(infra) {
+    document.getElementById("infra").innerHTML = `
+        <h3><i class="fas fa-server"></i> Infrastructure</h3>
         <table>
-            ${Object.entries(headers).map(([k, v]) => `
-                <tr>
-                    <td>${k}</td>
-                    <td class="${v ? "ok" : "bad"}">
-                        ${v ? "Present" : "Missing"}
-                    </td>
-                </tr>
-            `).join("")}
+            <tr><td>Server</td><td>${infra.server || "-"}</td></tr>
+            <tr><td>CDN</td><td>${infra.cdn || "-"}</td></tr>
         </table>
     `;
 }
 
 /* =========================
-   CSP
-========================= */
-function renderCSP() {
-    // CSP analysis already summarized in score section
-    return;
-}
-
-/* =========================
-   DNS PANEL (DNS-ONLY)
+   DNS (FIXED & CLEAN)
 ========================= */
 function renderDNS(dns) {
-    if (!dns || !dns.results || dns.results.length === 0) {
-        dnsDiv.innerHTML = `
-            <h3>DNS Resolution</h3>
-            <p>No DNS information available</p>
-        `;
-        return;
-    }
+    const rows = dns.records.map(r => `
+        <tr>
+            <td>${r.source}</td>
+            <td>${r.location}</td>
+            <td>${r.provider}</td>
+            <td>${r.ip}</td>
+        </tr>
+    `).join("");
 
-    dnsDiv.innerHTML = `
-        <h3>DNS Resolution for ${dns.domain}</h3>
+    document.getElementById("dns").innerHTML = `
+        <h3><i class="fas fa-globe"></i> DNS</h3>
         <table>
-            <tr>
-                <th>Resolver</th>
-                <th>Location</th>
-                <th>Provider</th>
-                <th>IPs</th>
-            </tr>
-            ${dns.results.map(r => `
+            <thead>
                 <tr>
-                    <td>${r.resolver}</td>
-                    <td>${r.location || "-"}</td>
-                    <td>${r.provider || "-"}</td>
-                    <td>${(r.ips || []).join("<br>")}</td>
+                    <th>Source</th>
+                    <th>Location</th>
+                    <th>Provider</th>
+                    <th>IPs</th>
                 </tr>
-            `).join("")}
+            </thead>
+            <tbody>
+                ${rows}
+            </tbody>
         </table>
-
-        <p style="margin-top:10px">
-            <strong>Primary Resolved IP:</strong>
-            ${dns.resolved_ip || "-"}
-        </p>
+        <p><strong>Primary IP:</strong> ${dns.primary_ip}</p>
     `;
 }
 
-/* =========================
-   INFRASTRUCTURE
-========================= */
-function renderInfra(infra) {
-    if (!infra) return;
-
-    infraDiv.innerHTML = `
-        <h3>Infrastructure</h3>
-        <p>CDN / Proxy: <strong>${infra.cdn || "-"}</strong></p>
-    `;
-}
-
-/* =========================
-   RECOMMENDATIONS
-========================= */
+/* RECOMMENDATIONS */
 function renderRecommendations(recs) {
+    const el = document.getElementById("recommendations");
+
     if (!recs || recs.length === 0) {
-        recDiv.innerHTML = `
-            <h3>Recommendations</h3>
-            <p>No recommendations 🎉</p>
-        `;
+        el.innerHTML = "<h3><i class='fas fa-bolt'></i> Recommendations</h3><p>🎉 No issues</p>";
         return;
     }
 
-    recDiv.innerHTML = `
-        <h3>Recommendations</h3>
-        <ul>
-            ${recs.map(r => `<li>${r}</li>`).join("")}
-        </ul>
+    el.innerHTML = `
+        <h3><i class="fas fa-bolt"></i> Recommendations</h3>
+        ${recs.map(r => `<div class="action-item">${r}</div>`).join("")}
     `;
 }
+
+scanBtn.addEventListener("click", scan);
+pdfBtn.addEventListener("click", downloadPDF);
 

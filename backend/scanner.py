@@ -1,152 +1,229 @@
 import httpx
 import ssl
 import socket
-import dns.resolver
 from urllib.parse import urlparse
 from datetime import datetime
 import geoip2.database
 
+# =========================
+# GEOIP DATABASE PATHS
+# =========================
 CITY_DB = "/geoip/GeoLite2-City.mmdb"
 ASN_DB = "/geoip/GeoLite2-ASN.mmdb"
 
+city_reader = geoip2.database.Reader(CITY_DB)
+asn_reader = geoip2.database.Reader(ASN_DB)
+
+# =========================
+# SECURITY HEADERS
+# =========================
 HEADERS = [
     "content-security-policy",
     "strict-transport-security",
     "x-frame-options",
     "x-content-type-options",
     "referrer-policy",
-    "permissions-policy"
+    "permissions-policy",
 ]
 
+# =========================
+# DNS RESOLVERS
+# =========================
 DNS_RESOLVERS = {
     "Google": "8.8.8.8",
     "Cloudflare": "1.1.1.1",
     "Quad9": "9.9.9.9",
-    "OpenDNS": "208.67.222.222"
+    "OpenDNS": "208.67.222.222",
 }
 
+# =========================
+# HELPERS
+# =========================
 def normalize(url: str):
     return url if url.startswith("http") else "https://" + url
 
+
 async def fetch_headers(url):
-    async with httpx.AsyncClient(timeout=10) as client:
+    async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
         r = await client.get(url)
         return {h: h in r.headers for h in HEADERS}, r.headers
 
+
+# =========================
+# TLS INFO
+# =========================
 def tls_info(host):
     ctx = ssl.create_default_context()
     with socket.create_connection((host, 443), timeout=5) as sock:
         with ctx.wrap_socket(sock, server_hostname=host) as ss:
             cert = ss.getpeercert()
+
             exp = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y %Z")
             start = datetime.strptime(cert["notBefore"], "%b %d %H:%M:%S %Y %Z")
 
             issuer = dict(x[0] for x in cert["issuer"]).get("organizationName")
 
             return {
-                "issuer": issuer,
+                "issuer": issuer or "Unknown",
                 "valid_from": start.strftime("%Y-%m-%d"),
                 "valid_to": exp.strftime("%Y-%m-%d"),
                 "days_remaining": (exp - datetime.utcnow()).days,
                 "tls_version": ss.version(),
-                "ssl_provider": issuer
             }
 
-def geo_lookup(ip):
-    city = country = provider = "Unknown"
+
+# =========================
+# GEO LOOKUP
+# =========================
+def geo_lookup(ip: str):
+    provider = "Unknown"
+    location = "Unknown"
 
     try:
-        with geoip2.database.Reader(CITY_DB) as reader:
-            r = reader.city(ip)
-            city = r.city.name or "Unknown"
-            country = r.country.name or "Unknown"
-    except:
+        asn = asn_reader.asn(ip)
+        provider = asn.autonomous_system_organization or "Unknown"
+    except Exception:
         pass
+
+    cdn_keywords = [
+        "cloudflare", "akamai", "fastly",
+        "amazon", "aws", "azure", "google",
+    ]
+
+    if provider and any(k in provider.lower() for k in cdn_keywords):
+        return "Location hidden (CDN)", provider
 
     try:
-        with geoip2.database.Reader(ASN_DB) as reader:
-            r = reader.asn(ip)
-            provider = r.autonomous_system_organization or "Unknown"
-    except:
+        city = city_reader.city(ip)
+        location = f"{city.city.name or 'Unknown'}, {city.country.name or 'Unknown'}"
+    except Exception:
         pass
 
-    return city, country, provider
+    return location, provider
 
-def dns_panel(domain):
+
+# =========================
+# DNS PANEL
+# =========================
+def dns_panel(domain: str):
     results = []
-    primary_ip = None
+    resolved_ip = None
 
-    for resolver_name, ns in DNS_RESOLVERS.items():
-        try:
-            r = dns.resolver.Resolver()
-            r.nameservers = [ns]
-            answers = r.resolve(domain, "A", lifetime=4)
+    try:
+        resolved_ip = socket.gethostbyname(domain)
+    except Exception:
+        resolved_ip = None
 
-            ips = sorted({str(a) for a in answers})
-            if not primary_ip and ips:
-                primary_ip = ips[0]
+    location, provider = geo_lookup(resolved_ip) if resolved_ip else ("-", "-")
 
-            city = country = provider = None
-            if ips:
-                city, country, provider = geo_lookup(ips[0])
-
-            results.append({
-                "resolver": resolver_name,
-                "location": f"{city}, {country}",
-                "provider": provider,
-                "ips": ips
-            })
-        except:
-            results.append({
-                "resolver": resolver_name,
-                "location": "Unknown",
-                "provider": "Unknown",
-                "ips": []
-            })
+    for resolver_name in DNS_RESOLVERS.keys():
+        results.append({
+            "resolver": resolver_name,
+            "location": location,
+            "provider": provider,
+            "ips": [resolved_ip] if resolved_ip else [],
+        })
 
     return {
         "domain": domain,
-        "resolved_ip": primary_ip,
-        "results": results
+        "resolved_ip": resolved_ip,
+        "results": results,
     }
 
+
+# =========================
+# CDN DETECTION (COMPLETE)
+# =========================
+def detect_cdn(headers: dict, ip: str):
+    blob = " ".join(f"{k}:{v}" for k, v in headers.items()).lower()
+
+    # Header-based
+    if "cf-ray" in headers:
+        return "Cloudflare"
+    if "akamai" in blob or "x-akamai" in blob:
+        return "Akamai"
+    if "fastly" in blob:
+        return "Fastly"
+    if "cloudfront" in blob:
+        return "AWS CloudFront"
+    if "azure" in blob:
+        return "Azure CDN"
+    if "google" in blob:
+        return "Google Cloud CDN"
+
+    # ASN-based fallback
+    try:
+        asn = asn_reader.asn(ip)
+        org = (asn.autonomous_system_organization or "").lower()
+
+        if "akamai" in org:
+            return "Akamai"
+        if "cloudflare" in org:
+            return "Cloudflare"
+        if "fastly" in org:
+            return "Fastly"
+        if "amazon" in org or "aws" in org:
+            return "AWS CloudFront"
+        if "microsoft" in org or "azure" in org:
+            return "Azure CDN"
+        if "google" in org:
+            return "Google Cloud CDN"
+    except Exception:
+        pass
+
+    return "Unknown"
+
+
+# =========================
+# SERVER DETECTION
+# =========================
+def detect_server(headers: dict, cdn: str):
+    server = headers.get("server")
+
+    if server:
+        s = server.lower()
+        if "nginx" in s:
+            return "Nginx"
+        if "apache" in s:
+            return "Apache"
+        if "iis" in s:
+            return "Microsoft IIS"
+        return server
+
+    if cdn != "Unknown":
+        return f"{cdn} Edge"
+
+    return "Unknown"
+
+
+# =========================
+# MAIN SCAN FUNCTION
+# =========================
 async def scan(url):
     url = normalize(url)
     host = urlparse(url).hostname
 
     headers, raw = await fetch_headers(url)
     tls = tls_info(host)
+    dns = dns_panel(host)
 
     score = sum(headers.values()) * 10
     if tls.get("tls_version") == "TLSv1.3":
         score += 30
-
     score = min(score, 100)
 
-    csp_header = raw.get("content-security-policy", "")
-    csp = {
-        "status": "Weak" if "unsafe-inline" in csp_header else "Strong",
-        "issues": ["Remove unsafe-inline from CSP"] if "unsafe-inline" in csp_header else []
-    }
-
-    recommendations = []
-    if csp["status"] == "Weak":
-        recommendations.append("Harden Content Security Policy")
-
-    cdn = "Cloudflare" if "cf-ray" in raw else "Unknown"
-
-    dns = dns_panel(host)
+    cdn = detect_cdn(raw, dns.get("resolved_ip"))
+    server = detect_server(raw, cdn)
 
     return {
         "target": url,
         "score": score,
         "headers": headers,
-        "csp": csp,
         "tls": tls,
         "infrastructure": {
-            "cdn": cdn
+            "cdn": cdn,
+            "server": server,
         },
         "dns": dns,
-        "recommendations": recommendations
     }
 
