@@ -1,21 +1,32 @@
 const BACKEND_URL = `${window.location.protocol}//${window.location.hostname}:8000`;
 
 const scanBtn = document.getElementById("scanBtn");
+const pdfBtn  = document.getElementById("pdfBtn");
 
-/* RESET */
+/* =========================
+   RESET UI (DNS SAFE)
+========================= */
 function resetUI() {
     document.getElementById("scoreValue").innerText = "--";
     document.getElementById("targetDisplay").innerText = "Scanning...";
     document.getElementById("targetSub").innerText = "Please wait…";
     document.getElementById("scoreGauge").className = "gauge";
 
-    ["tls","headers","infra","dns","recommendations"].forEach(id => {
+    ["tls","headers","infra","recommendations"].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = "<p>Loading…</p>";
     });
+
+    // DNS placeholder (DO NOT destroy structure)
+    document.getElementById("dns").innerHTML = `
+        <h3><i class="fas fa-globe"></i> DNS</h3>
+        <p>Resolving DNS…</p>
+    `;
 }
 
-/* SCAN */
+/* =========================
+   SCAN
+========================= */
 async function scan() {
     const url = document.getElementById("urlInput").value.trim();
     if (!url) return alert("Enter a URL");
@@ -32,7 +43,22 @@ async function scan() {
     renderAll(data);
 }
 
-/* RENDER */
+/* =========================
+   PDF
+========================= */
+function downloadPDF() {
+    const url = document.getElementById("urlInput").value.trim();
+    if (!url) return alert("Enter a URL first");
+
+    window.open(
+        `${BACKEND_URL}/api/scan/pdf?url=${encodeURIComponent(url)}`,
+        "_blank"
+    );
+}
+
+/* =========================
+   RENDER
+========================= */
 function renderAll(data) {
     renderHero(data);
     renderTLS(data.tls);
@@ -57,8 +83,8 @@ function renderTLS(tls) {
         <h3><i class="fas fa-lock"></i> TLS</h3>
         <table>
             <tr><td>Issuer</td><td>${tls.issuer || "-"}</td></tr>
-            <tr><td>Version</td><td>${tls.tls_version}</td></tr>
-            <tr><td>Expires</td><td>${tls.days_remaining} days</td></tr>
+            <tr><td>Version</td><td>${tls.tls_version || "-"}</td></tr>
+            <tr><td>Expires (days)</td><td>${tls.days_remaining ?? "-"}</td></tr>
         </table>
     `;
 }
@@ -91,31 +117,39 @@ function renderInfra(infra) {
     `;
 }
 
-/* DNS – SAME DATA, COMPACT VIEW */
+/* =========================
+   DNS (FIXED & CLEAN)
+========================= */
 function renderDNS(dns) {
-    const rows = dns.results.map(r => `
+    const rows = dns.records.map(r => `
         <tr>
-            <td>${r.resolver} (${r.location})</td>
+            <td>${r.source}</td>
+            <td>${r.location}</td>
             <td>${r.provider}</td>
-            <td>${(r.ips || []).join("<br>")}</td>
+            <td>${r.ip}</td>
         </tr>
     `).join("");
 
     document.getElementById("dns").innerHTML = `
         <h3><i class="fas fa-globe"></i> DNS</h3>
         <table>
-            <tr>
-                <th>Source</th>
-                <th>Provider</th>
-                <th>IPs</th>
-            </tr>
-            ${rows}
+            <thead>
+                <tr>
+                    <th>Source</th>
+                    <th>Location</th>
+                    <th>Provider</th>
+                    <th>IPs</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rows}
+            </tbody>
         </table>
-        <p><strong>Primary IP:</strong> ${dns.resolved_ip}</p>
+        <p><strong>Primary IP:</strong> ${dns.primary_ip}</p>
     `;
 }
 
-/* RECS */
+/* RECOMMENDATIONS */
 function renderRecommendations(recs) {
     const el = document.getElementById("recommendations");
 
@@ -131,4 +165,5 @@ function renderRecommendations(recs) {
 }
 
 scanBtn.addEventListener("click", scan);
+pdfBtn.addEventListener("click", downloadPDF);
 

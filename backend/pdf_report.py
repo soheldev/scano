@@ -4,6 +4,7 @@ from reportlab.lib.colors import HexColor
 from datetime import datetime
 import io
 
+# Colors
 PRIMARY = HexColor("#111827")
 MUTED = HexColor("#6b7280")
 ACCENT = HexColor("#2563eb")
@@ -13,7 +14,9 @@ BAD = HexColor("#dc2626")
 LEFT = 45
 RIGHT = 550
 TOP = 805
-LINE = 14.4
+BOTTOM = 60
+LINE = 14
+
 
 def build_pdf(data):
     buf = io.BytesIO()
@@ -21,108 +24,126 @@ def build_pdf(data):
     w, h = A4
     y = TOP
 
+    def ensure(space=40):
+        nonlocal y
+        if y < BOTTOM + space:
+            c.showPage()
+            y = TOP
+
     def hr():
         nonlocal y
+        ensure(20)
         c.setStrokeColor(MUTED)
         c.line(LEFT, y, RIGHT, y)
         y -= 10
 
+    # ================= HEADER =================
     c.setFont("Helvetica-Bold", 20)
     c.setFillColor(PRIMARY)
     c.drawString(LEFT, y, "Web Security Scan Report")
 
     c.setFont("Helvetica-Bold", 22)
     c.setFillColor(ACCENT)
-    c.drawRightString(RIGHT, y, f"{data['score']}/100")
+    c.drawRightString(RIGHT, y, f"{data.get('score', '--')}/100")
 
     y -= 26
     c.setFont("Helvetica", 10)
     c.setFillColor(MUTED)
-    c.drawString(LEFT, y, f"Target: {data['target']}")
-    c.drawRightString(RIGHT, y, datetime.utcnow().strftime("%d %b %Y %H:%M UTC"))
+    c.drawString(LEFT, y, f"Target: {data.get('target', '-')}")
+    c.drawRightString(
+        RIGHT,
+        y,
+        datetime.utcnow().strftime("%d %b %Y %H:%M UTC")
+    )
 
     y -= 12
     hr()
 
+    # ================= EXECUTIVE SUMMARY =================
     c.setFont("Helvetica-Bold", 12)
     c.setFillColor(PRIMARY)
     c.drawString(LEFT, y, "Executive Summary")
     y -= 10
     hr()
 
-    c.setFont("Helvetica", 10)
-    tls = data["tls"].get("tls_version", "N/A")
-    csp = data.get("csp_status", "Unknown")
-    cdn = data.get("cdn", "Unknown")
+    tls = data.get("tls", {})
+    headers = data.get("headers", {})
 
-    summary = [
-        ("TLS Version", tls),
-        ("Content Security Policy", csp),
-        ("CDN / Proxy", cdn),
-        ("Security Headers", f"{sum(data['headers'].values())}/{len(data['headers'])}")
+    exec_rows = [
+        ("TLS Version", tls.get("tls_version", "-")),
+        ("Certificate Issuer", tls.get("issuer", "-")),
+        ("Content Security Policy", data.get("csp_status", "Unknown")),
+        ("Security Headers", f"{sum(headers.values())}/{len(headers)}"),
+        ("CDN / Proxy", data.get("cdn", "Unknown")),
     ]
 
-    for k, v in summary:
+    c.setFont("Helvetica", 10)
+    for k, v in exec_rows:
+        ensure()
         c.setFillColor(PRIMARY)
-        c.drawString(LEFT + 5, y, f"{k}:")
+        c.drawString(LEFT + 5, y, k)
         c.setFillColor(MUTED)
-        c.drawString(200, y, str(v))
+        c.drawString(260, y, str(v))
         y -= LINE
 
     y -= 8
 
+    # ================= TLS DETAILS =================
     c.setFont("Helvetica-Bold", 12)
     c.setFillColor(PRIMARY)
     c.drawString(LEFT, y, "TLS / SSL Configuration")
     y -= 10
     hr()
 
-    c.setFont("Helvetica", 10)
-    tls = data["tls"]
-
-    for k, v in [
+    tls_rows = [
         ("Issuer", tls.get("issuer", "-")),
         ("Valid From", tls.get("valid_from", "-")),
         ("Valid To", tls.get("valid_to", "-")),
         ("Days Remaining", tls.get("days_remaining", "-")),
         ("TLS Version", tls.get("tls_version", "-")),
-    ]:
+    ]
+
+    c.setFont("Helvetica", 10)
+    for k, v in tls_rows:
+        ensure()
         c.setFillColor(PRIMARY)
-        c.drawString(LEFT + 5, y, f"{k}:")
+        c.drawString(LEFT + 5, y, k)
         c.setFillColor(MUTED)
-        c.drawString(200, y, str(v))
+        c.drawString(260, y, str(v))
         y -= LINE
 
     y -= 8
 
+    # ================= DNS PANEL =================
     c.setFont("Helvetica-Bold", 12)
     c.setFillColor(PRIMARY)
-    c.drawString(LEFT, y, "DNS Resolution & Geo Location")
+    c.drawString(LEFT, y, "DNS Resolution & Network Location")
     y -= 10
     hr()
 
     dns = data.get("dns", {})
-    c.setFont("Helvetica", 10)
-    c.setFillColor(MUTED)
-    c.drawString(LEFT + 5, y, f"Domain: {dns.get('domain', '-')}")
-    c.drawRightString(RIGHT, y, f"Primary IP: {dns.get('resolved_ip', '-')}")
-    y -= LINE + 2
+    results = dns.get("results", [])
 
-    for r in dns.get("results", []):
-        c.setFont("Helvetica-Bold", 10)
+    c.setFont("Helvetica", 10)
+    for r in results:
+        ensure(50)
+
         c.setFillColor(PRIMARY)
-        c.drawString(LEFT + 5, y, r["resolver"])
+        c.drawString(LEFT + 5, y, r.get("resolver", "-"))
         y -= LINE
 
-        c.setFont("Helvetica", 10)
         c.setFillColor(MUTED)
         c.drawString(LEFT + 20, y, f"Location: {r.get('location', '-')}")
-        c.drawString(260, y, f"Provider: {r.get('provider', '-')}")
+        c.drawString(300, y, f"Provider: {r.get('provider', '-')}")
         y -= LINE
 
-        c.drawString(LEFT + 20, y, f"IPs: {', '.join(r.get('ips', []))}")
+        ips = ", ".join(r.get("ips", [])) or "-"
+        c.drawString(LEFT + 20, y, f"IPs: {ips}")
         y -= LINE + 6
 
+    y -= 6
+
+    # ================= HEADERS =================
     c.setFont("Helvetica-Bold", 12)
     c.setFillColor(PRIMARY)
     c.drawString(LEFT, y, "HTTP Security Headers")
@@ -130,16 +151,22 @@ def build_pdf(data):
     hr()
 
     c.setFont("Helvetica", 10)
-    for k, v in data["headers"].items():
+    for h, present in headers.items():
+        ensure()
         c.setFillColor(PRIMARY)
-        c.drawString(LEFT + 5, y, k)
-        c.setFillColor(GOOD if v else BAD)
-        c.drawRightString(RIGHT, y, "Present" if v else "Missing")
+        c.drawString(LEFT + 5, y, h)
+        c.setFillColor(GOOD if present else BAD)
+        c.drawRightString(RIGHT, y, "Present" if present else "Missing")
         y -= LINE
 
+    # ================= FOOTER =================
     c.setFont("Helvetica", 8)
     c.setFillColor(MUTED)
-    c.drawCentredString(w / 2, 25, "Generated by Scano • Automated Web Security Scanner")
+    c.drawCentredString(
+        w / 2,
+        25,
+        "Generated by WebGuard • Automated Web Security Scanner"
+    )
 
     c.showPage()
     c.save()
