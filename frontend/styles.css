@@ -5,33 +5,61 @@
 html, body {
     height: 100%;
     margin: 0;
-    overflow: hidden; /* 🚫 NO PAGE SCROLL */
+    overflow: hidden;
     font-family: Inter, system-ui, sans-serif;
 }
 
-/* COLORS */
+/* =========================
+   DESIGN TOKENS
+========================= */
 :root {
-    --bg: #0f172a;
-    --card: #1e293b;
-    --border: #334155;
-    --text: #f1f5f9;
-    --muted: #94a3b8;
-    --accent: #3b82f6;
-    --success: #22c55e;
-    --danger: #ef4444;
-    --warn: #f59e0b;
+    /* Base & Surfaces */
+    --bg: #080A0C;          /* Deep Obsidian */
+    --card: #12161F;        /* Dark Slate */
+    --border: #1E2530;      /* Subtle Graphite */
+
+    /* Typography */
+    --text: #F0F6FC;        /* Primary text */
+    --muted: #8B949E;       /* Secondary text */
+    --tech: #79C0FF;        /* Technical data */
+
+    /* Accents */
+    --accent: #00D1FF;      /* Electric Cyan */
+    --accent-hover: #00B8E6;
+    --glow: rgba(0, 209, 255, 0.15);
+
+    /* Status */
+    --success: #00F59B;     /* Neon Mint */
+    --warn: #FFB800;        /* Cyber Amber */
+    --danger: #FF4B4B;      /* Sunset Red */
 }
 
+/* =========================
+   BASE TYPOGRAPHY
+========================= */
 body {
-    background: var(--bg);
+    background: radial-gradient(
+        1200px 600px at 50% -200px,
+        rgba(0,209,255,0.08),
+        transparent
+    ), var(--bg);
     color: var(--text);
+    font-size: 16px;
+    line-height: 1.6;
 }
 
-/* NAV */
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.3rem; }
+h3 { font-size: 1.1rem; margin-bottom: .6rem; letter-spacing: .3px; }
+
+/* =========================
+   NAVBAR
+========================= */
 .navbar {
     height: 64px;
+    background: rgba(8,10,12,.92);
+    backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--border);
-    background: rgba(15,23,42,.95);
 }
 
 .nav-content {
@@ -44,23 +72,80 @@ body {
     align-items: center;
 }
 
+.nav-content i {
+    color: var(--accent);
+}
+
+/* =========================
+   SEARCH BAR
+========================= */
 .search-bar {
     display: flex;
     gap: .5rem;
     background: var(--card);
-    padding: .4rem;
-    border-radius: 10px;
+    padding: .5rem;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+}
+
+.search-bar:focus-within {
+    border-color: var(--accent);
+    box-shadow:
+        0 0 0 2px rgba(0,209,255,.35),
+        0 0 24px rgba(0,209,255,.25);
 }
 
 .search-bar input {
     background: transparent;
     border: none;
-    color: white;
-    width: 260px;
+    color: var(--text);
+    width: 280px;
     outline: none;
+    font-size: 1rem;
 }
 
-/* DASHBOARD */
+/* Analyze button */
+.search-bar button {
+    background: var(--accent);
+    color: #001018;
+    border: none;
+    padding: .5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.search-bar button:hover {
+    background: var(--accent-hover);
+}
+
+/* =========================
+   PDF BUTTON — RED ICON FIX
+========================= */
+.btn-icon {
+    background: rgba(255,75,75,0.25);  /* light transparent red */
+    color: #FF2D2D;                     /* bright red icon */
+    border: 1px solid rgba(255,75,75,0.7);
+    padding: .45rem .7rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s ease;
+}
+
+.btn-icon:hover {
+    background: rgba(255,75,75,0.4);
+    color: #FF2D2D;
+    box-shadow: 0 0 25px rgba(255,75,75,0.8);
+}
+
+/* =========================
+   DASHBOARD
+========================= */
 .dashboard {
     height: calc(100vh - 64px - 32px);
     max-width: 1400px;
@@ -71,30 +156,58 @@ body {
     gap: 1rem;
 }
 
-/* HERO */
+/* =========================
+   HERO
+========================= */
 .hero-card {
     display: flex;
     align-items: center;
     gap: 1.5rem;
-    background: linear-gradient(135deg, #1e293b, #0f172a);
+    background: linear-gradient(135deg, #12161F, #080A0C);
+    border: 1px solid var(--border);
+    box-shadow:
+        0 0 48px rgba(0,209,255,.35),
+        0 20px 60px rgba(0,0,0,.85);
 }
 
+/* SCORE */
 .gauge {
-    width: 90px;
-    height: 90px;
+    width: 100px;
+    height: 100px;
     border-radius: 50%;
     border: 8px solid var(--border);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-weight: bold;
+    font-weight: 800;
+    font-size: 1.7rem;
 }
 
-.gauge.ok { border-color: var(--success); color: var(--success); }
-.gauge.bad { border-color: var(--danger); color: var(--danger); }
+.gauge small {
+    font-size: .8rem;
+    color: var(--muted);
+}
 
-/* CONTENT */
+.gauge.ok {
+    border-color: var(--success);
+    color: var(--success);
+    box-shadow:
+        0 0 35px rgba(0,245,155,.6),
+        0 0 65px rgba(0,245,155,.35);
+}
+
+.gauge.bad {
+    border-color: var(--danger);
+    color: var(--danger);
+    box-shadow:
+        0 0 35px rgba(255,75,75,.6),
+        0 0 65px rgba(255,75,75,.35);
+}
+
+/* =========================
+   GRID
+========================= */
 .content {
     flex: 1;
     display: grid;
@@ -102,62 +215,138 @@ body {
     gap: 1rem;
 }
 
-/* LEFT */
 .left-panel {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
 }
 
-/* CARD */
+/* =========================
+   CARD BASE (STRONG GLOW)
+========================= */
 .card {
-    background: var(--card);
+    background: linear-gradient(180deg, #12161F, #0E131C);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 1rem;
+    border-radius: 16px;
+    padding: 1.2rem;
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,.02),
+        0 0 32px rgba(0,0,0,.85),
+        0 20px 55px rgba(0,0,0,.9);
+    transition: transform .2s ease, box-shadow .25s ease;
 }
 
-/* DNS */
-.dns-panel {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
+.card:hover {
+    transform: translateY(-3px);
 }
 
-/* TABLE */
+/* TLS — Neon Mint */
+#tls {
+    box-shadow:
+        0 0 0 2px rgba(0,245,155,.35),
+        0 0 45px rgba(0,245,155,.5),
+        0 22px 70px rgba(0,0,0,.85);
+}
+
+/* Headers — Electric Cyan */
+#headers {
+    box-shadow:
+        0 0 0 2px rgba(0,209,255,.35),
+        0 0 45px rgba(0,209,255,.5),
+        0 22px 70px rgba(0,0,0,.85);
+}
+
+/* Infrastructure — Soft Sky Blue */
+#infra {
+    box-shadow:
+        0 0 0 2px rgba(121,192,255,.4),
+        0 0 45px rgba(121,192,255,.5),
+        0 22px 70px rgba(0,0,0,.85);
+}
+
+/* DNS — Neon Cyan */
+#dns {
+    box-shadow:
+        0 0 0 2px rgba(121,192,255,.45),
+        0 0 50px rgba(121,192,255,.55),
+        0 24px 75px rgba(0,0,0,.9);
+}
+
+/* Recommendations — Cyber Amber */
+#recommendations {
+    box-shadow:
+        0 0 0 2px rgba(255,184,0,.45),
+        0 0 50px rgba(255,184,0,.55),
+        0 24px 75px rgba(0,0,0,.9);
+}
+
+/* =========================
+   TABLES
+========================= */
 table {
     width: 100%;
     border-collapse: collapse;
-    font-size: .85rem;
+    font-size: 1rem;
 }
 
 td, th {
-    padding: .35rem;
+    padding: .55rem;
     border-bottom: 1px solid var(--border);
 }
 
-th {
-    text-align: left;
-    font-weight: 600;
+th { color: var(--muted); }
+
+td:last-child {
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    color: var(--tech);
+    font-size: 0.95rem;
 }
 
-/* BADGES */
-.status-badge.present { color: var(--success); }
-.status-badge.missing { color: var(--danger); }
+/* =========================
+   STATUS
+========================= */
+.status-badge.present {
+    color: var(--success);
+    font-weight: 700;
+}
 
-/* RECOMMENDATIONS */
+.status-badge.missing {
+    color: var(--danger);
+    font-weight: 700;
+}
+
+/* =========================
+   DNS
+========================= */
+.dns-panel {
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+}
+
+.dns-primary {
+    font-size: .95rem;
+    color: var(--tech);
+}
+
+/* =========================
+   RECOMMENDATIONS
+========================= */
 .action-item {
-    background: rgba(245,158,11,.15);
+    background: rgba(255,184,0,.16);
     border-left: 4px solid var(--warn);
-    padding: .5rem;
-    margin-bottom: .4rem;
+    padding: .7rem;
+    border-radius: 6px;
+    margin-bottom: .5rem;
 }
 
-/* FOOTER */
+/* =========================
+   FOOTER
+========================= */
 footer {
     height: 32px;
     text-align: center;
-    font-size: .75rem;
+    font-size: .8rem;
     color: var(--muted);
 }
 
