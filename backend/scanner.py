@@ -76,6 +76,9 @@ def tls_info(host):
 # GEO LOOKUP
 # =========================
 def geo_lookup(ip: str):
+    if not ip:
+        return "-", "-"
+
     provider = "Unknown"
     location = "Unknown"
 
@@ -85,12 +88,9 @@ def geo_lookup(ip: str):
     except Exception:
         pass
 
-    cdn_keywords = [
-        "cloudflare", "akamai", "fastly",
-        "amazon", "aws", "azure", "google",
-    ]
-
-    if provider and any(k in provider.lower() for k in cdn_keywords):
+    # CDN hides location
+    cdn_orgs = ["cloudflare", "akamai", "fastly", "edgecast"]
+    if any(c in provider.lower() for c in cdn_orgs):
         return "Location hidden (CDN)", provider
 
     try:
@@ -112,13 +112,13 @@ def dns_panel(domain: str):
     try:
         resolved_ip = socket.gethostbyname(domain)
     except Exception:
-        resolved_ip = None
+        pass
 
-    location, provider = geo_lookup(resolved_ip) if resolved_ip else ("-", "-")
+    location, provider = geo_lookup(resolved_ip)
 
-    for resolver_name in DNS_RESOLVERS.keys():
+    for resolver in DNS_RESOLVERS.keys():
         results.append({
-            "resolver": resolver_name,
+            "resolver": resolver,
             "location": location,
             "provider": provider,
             "ips": [resolved_ip] if resolved_ip else [],
@@ -132,26 +132,10 @@ def dns_panel(domain: str):
 
 
 # =========================
-# CDN DETECTION (COMPLETE)
+# CDN DETECTION (CORRECT)
 # =========================
 def detect_cdn(headers: dict, ip: str):
-    blob = " ".join(f"{k}:{v}" for k, v in headers.items()).lower()
-
-    # Header-based
-    if "cf-ray" in headers:
-        return "Cloudflare"
-    if "akamai" in blob or "x-akamai" in blob:
-        return "Akamai"
-    if "fastly" in blob:
-        return "Fastly"
-    if "cloudfront" in blob:
-        return "AWS CloudFront"
-    if "azure" in blob:
-        return "Azure CDN"
-    if "google" in blob:
-        return "Google Cloud CDN"
-
-    # ASN-based fallback
+    # 1️⃣ ASN — ONLY real CDNs
     try:
         asn = asn_reader.asn(ip)
         org = (asn.autonomous_system_organization or "").lower()
@@ -162,14 +146,25 @@ def detect_cdn(headers: dict, ip: str):
             return "Cloudflare"
         if "fastly" in org:
             return "Fastly"
-        if "amazon" in org or "aws" in org:
-            return "AWS CloudFront"
-        if "microsoft" in org or "azure" in org:
-            return "Azure CDN"
-        if "google" in org:
-            return "Google Cloud CDN"
+        if "edgecast" in org or "verizon" in org:
+            return "Edgecast"
+
+        # ❌ Hosting ≠ CDN
+        if any(x in org for x in ["amazon", "aws", "google", "microsoft", "azure"]):
+            return "Unknown"
+
     except Exception:
         pass
+
+    # 2️⃣ Header-based fallback
+    if "cf-ray" in headers:
+        return "Cloudflare"
+    if "x-akamai" in headers or "akamai" in str(headers).lower():
+        return "Akamai"
+    if "x-fastly" in headers:
+        return "Fastly"
+    if "x-amz-cf-id" in headers:
+        return "AWS CloudFront"
 
     return "Unknown"
 
@@ -177,23 +172,20 @@ def detect_cdn(headers: dict, ip: str):
 # =========================
 # SERVER DETECTION
 # =========================
-def detect_server(headers: dict, cdn: str):
+def detect_server(headers: dict):
     server = headers.get("server")
+    if not server:
+        return "Unknown"
 
-    if server:
-        s = server.lower()
-        if "nginx" in s:
-            return "Nginx"
-        if "apache" in s:
-            return "Apache"
-        if "iis" in s:
-            return "Microsoft IIS"
-        return server
+    s = server.lower()
+    if "nginx" in s:
+        return "Nginx"
+    if "apache" in s:
+        return "Apache"
+    if "iis" in s:
+        return "Microsoft IIS"
 
-    if cdn != "Unknown":
-        return f"{cdn} Edge"
-
-    return "Unknown"
+    return server
 
 
 # =========================
@@ -213,7 +205,7 @@ async def scan(url):
     score = min(score, 100)
 
     cdn = detect_cdn(raw, dns.get("resolved_ip"))
-    server = detect_server(raw, cdn)
+    server = detect_server(raw)
 
     return {
         "target": url,

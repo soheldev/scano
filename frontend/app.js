@@ -17,7 +17,6 @@ function resetUI() {
         if (el) el.innerHTML = "<p>Loading…</p>";
     });
 
-    // DNS placeholder (DO NOT destroy structure)
     document.getElementById("dns").innerHTML = `
         <h3><i class="fas fa-globe"></i> DNS</h3>
         <p>Resolving DNS…</p>
@@ -118,21 +117,29 @@ function renderInfra(infra) {
 }
 
 /* =========================
-   DNS (FIXED & CLEAN)
+   DNS (FIXED — MATCHES BACKEND)
 ========================= */
 function renderDNS(dns) {
-    const rows = dns.records.map(r => `
+    if (!dns || !dns.results) {
+        document.getElementById("dns").innerHTML = `
+            <h3><i class="fas fa-globe"></i> DNS</h3>
+            <p>No DNS data available</p>
+        `;
+        return;
+    }
+
+    const rows = dns.results.map(r => `
         <tr>
-            <td>${r.source}</td>
-            <td>${r.location}</td>
-            <td>${r.provider}</td>
-            <td>${r.ip}</td>
+            <td>${r.resolver || "-"}</td>
+            <td>${r.location || "-"}</td>
+            <td>${r.provider || "-"}</td>
+            <td>${(r.ips && r.ips.join(", ")) || "-"}</td>
         </tr>
     `).join("");
 
     document.getElementById("dns").innerHTML = `
         <h3><i class="fas fa-globe"></i> DNS</h3>
-        <table>
+        <table class="dns-table">
             <thead>
                 <tr>
                     <th>Source</th>
@@ -145,7 +152,7 @@ function renderDNS(dns) {
                 ${rows}
             </tbody>
         </table>
-        <p><strong>Primary IP:</strong> ${dns.primary_ip}</p>
+        <p><strong>Primary IP:</strong> ${dns.resolved_ip || "-"}</p>
     `;
 }
 
