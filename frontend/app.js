@@ -1,4 +1,6 @@
-const BACKEND_URL = `${window.location.protocol}//${window.location.hostname}:8000`;
+// Backend is accessed via SAME DOMAIN through nginx
+// nginx: location /api/ → http://127.0.0.1:8000/
+const BACKEND_URL = "/api";
 
 const scanBtn = document.getElementById("scanBtn");
 const pdfBtn  = document.getElementById("pdfBtn");
@@ -32,7 +34,7 @@ async function scan() {
 
     resetUI();
 
-    const res = await fetch(`${BACKEND_URL}/api/scan`, {
+    const res = await fetch(`${BACKEND_URL}/scan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
@@ -50,7 +52,7 @@ function downloadPDF() {
     if (!url) return alert("Enter a URL first");
 
     window.open(
-        `${BACKEND_URL}/api/scan/pdf?url=${encodeURIComponent(url)}`,
+        `${BACKEND_URL}/scan/pdf?url=${encodeURIComponent(url)}`,
         "_blank"
     );
 }
@@ -81,16 +83,16 @@ function renderTLS(tls) {
     document.getElementById("tls").innerHTML = `
         <h3><i class="fas fa-lock"></i> TLS</h3>
         <table>
-            <tr><td>Issuer</td><td>${tls.issuer || "-"}</td></tr>
-            <tr><td>Version</td><td>${tls.tls_version || "-"}</td></tr>
-            <tr><td>Expires (days)</td><td>${tls.days_remaining ?? "-"}</td></tr>
+            <tr><td>Issuer</td><td>${tls?.issuer || "-"}</td></tr>
+            <tr><td>Version</td><td>${tls?.tls_version || "-"}</td></tr>
+            <tr><td>Expires (days)</td><td>${tls?.days_remaining ?? "-"}</td></tr>
         </table>
     `;
 }
 
 /* HEADERS */
 function renderHeaders(headers) {
-    const rows = Object.entries(headers).map(([k,v]) => `
+    const rows = Object.entries(headers || {}).map(([k,v]) => `
         <tr>
             <td>${k}</td>
             <td class="status-badge ${v ? "present":"missing"}">
@@ -110,14 +112,14 @@ function renderInfra(infra) {
     document.getElementById("infra").innerHTML = `
         <h3><i class="fas fa-server"></i> Infrastructure</h3>
         <table>
-            <tr><td>Server</td><td>${infra.server || "-"}</td></tr>
-            <tr><td>CDN</td><td>${infra.cdn || "-"}</td></tr>
+            <tr><td>Server</td><td>${infra?.server || "-"}</td></tr>
+            <tr><td>CDN</td><td>${infra?.cdn || "-"}</td></tr>
         </table>
     `;
 }
 
 /* =========================
-   DNS (FIXED — MATCHES BACKEND)
+   DNS (MATCHES BACKEND)
 ========================= */
 function renderDNS(dns) {
     if (!dns || !dns.results) {
@@ -148,9 +150,7 @@ function renderDNS(dns) {
                     <th>IPs</th>
                 </tr>
             </thead>
-            <tbody>
-                ${rows}
-            </tbody>
+            <tbody>${rows}</tbody>
         </table>
         <p><strong>Primary IP:</strong> ${dns.resolved_ip || "-"}</p>
     `;
@@ -161,7 +161,10 @@ function renderRecommendations(recs) {
     const el = document.getElementById("recommendations");
 
     if (!recs || recs.length === 0) {
-        el.innerHTML = "<h3><i class='fas fa-bolt'></i> Recommendations</h3><p>🎉 No issues</p>";
+        el.innerHTML = `
+            <h3><i class="fas fa-bolt"></i> Recommendations</h3>
+            <p>🎉 No issues</p>
+        `;
         return;
     }
 

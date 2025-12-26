@@ -3,7 +3,7 @@ services:
     build: ./backend
     container_name: scano-backend
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./geoip:/geoip:ro
     restart: unless-stopped
@@ -12,7 +12,7 @@ services:
     build: ./frontend
     container_name: scano-frontend
     ports:
-      - "80:3000"
+      - "3000:3000"
     depends_on:
       - backend
     restart: unless-stopped
