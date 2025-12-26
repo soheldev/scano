@@ -10,15 +10,17 @@ const pdfBtn  = document.getElementById("pdfBtn");
 ========================= */
 function resetUI() {
     document.getElementById("scoreValue").innerText = "--";
-    document.getElementById("targetDisplay").innerText = "Scanning...";
-    document.getElementById("targetSub").innerText = "Please wait…";
+    document.getElementById("targetDisplay").innerText = "Ready to Scan";
+    document.getElementById("targetSub").innerText = "Enter a URL to begin security audit";
     document.getElementById("scoreGauge").className = "gauge";
 
+    // TLS, Headers, Infra, Recommendations
     ["tls","headers","infra","recommendations"].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = "<p>Loading…</p>";
     });
 
+    // DNS panel
     document.getElementById("dns").innerHTML = `
         <h3><i class="fas fa-globe"></i> DNS</h3>
         <p>Resolving DNS…</p>
@@ -34,18 +36,24 @@ async function scan() {
 
     resetUI();
 
-    const res = await fetch(`${BACKEND_URL}/scan`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-    });
+    try {
+        const res = await fetch(`${BACKEND_URL}/scan`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url }),
+        });
 
-    const data = await res.json();
-    renderAll(data);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        renderAll(data);
+    } catch (err) {
+        console.error("Scan error:", err);
+        alert("Failed to fetch scan data. Check console.");
+    }
 }
 
 /* =========================
-   PDF
+   PDF DOWNLOAD
 ========================= */
 function downloadPDF() {
     const url = document.getElementById("urlInput").value.trim();
@@ -76,6 +84,15 @@ function renderHero(data) {
     gauge.className = `gauge ${data.score < 50 ? "bad" : "ok"}`;
     document.getElementById("targetDisplay").innerText = data.target;
     document.getElementById("targetSub").innerText = "Scan completed";
+
+    // Optional: show site intro below hero
+    const heroCard = document.querySelector(".hero-card");
+    if (!document.querySelector(".hero-card p.intro") && heroCard) {
+        const intro = document.createElement("p");
+        intro.className = "intro";
+        intro.innerText = "Scano is a fast, privacy-first web security scanner that lets anyone check a website’s basic security posture in seconds. Simply paste a URL to see insights on SSL/TLS health, DNS and CDN protection, security headers, and common exposure risks—no login, no data storage, and no intrusive testing.";
+        heroCard.appendChild(intro);
+    }
 }
 
 /* TLS */
@@ -118,9 +135,7 @@ function renderInfra(infra) {
     `;
 }
 
-/* =========================
-   DNS (MATCHES BACKEND)
-========================= */
+/* DNS */
 function renderDNS(dns) {
     if (!dns || !dns.results) {
         document.getElementById("dns").innerHTML = `

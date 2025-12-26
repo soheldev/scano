@@ -2,52 +2,47 @@
     box-sizing: border-box;
 }
 
-html, body {
-    height: 100%;
+html {
+    scroll-behavior: smooth;
+}
+
+body {
     margin: 0;
-    overflow: hidden;
     font-family: Inter, system-ui, sans-serif;
+    background: radial-gradient(
+        1200px 600px at 50% -200px,
+        rgba(0,209,255,0.08),
+        transparent
+    ), #080A0C; /* base background */
+    color: #F0F6FC;
+    min-height: 100%;
+    line-height: 1.5;
 }
 
 /* =========================
    DESIGN TOKENS
 ========================= */
 :root {
-    /* Base & Surfaces */
-    --bg: #080A0C;          /* Deep Obsidian */
-    --card: #12161F;        /* Dark Slate */
-    --border: #1E2530;      /* Subtle Graphite */
+    --bg: #080A0C;
+    --card: #12161F;
+    --border: #1E2530;
 
-    /* Typography */
-    --text: #F0F6FC;        /* Primary text */
-    --muted: #8B949E;       /* Secondary text */
-    --tech: #79C0FF;        /* Technical data */
+    --text: #F0F6FC;
+    --muted: #8B949E;
+    --tech: #79C0FF;
 
-    /* Accents */
-    --accent: #00D1FF;      /* Electric Cyan */
+    --accent: #00D1FF;
     --accent-hover: #00B8E6;
     --glow: rgba(0, 209, 255, 0.15);
 
-    /* Status */
-    --success: #00F59B;     /* Neon Mint */
-    --warn: #FFB800;        /* Cyber Amber */
-    --danger: #FF4B4B;      /* Sunset Red */
+    --success: #00F59B;
+    --warn: #FFB800;
+    --danger: #FF4B4B;
 }
 
 /* =========================
-   BASE TYPOGRAPHY
+   TYPOGRAPHY
 ========================= */
-body {
-    background: radial-gradient(
-        1200px 600px at 50% -200px,
-        rgba(0,209,255,0.08),
-        transparent
-    ), var(--bg);
-    color: var(--text);
-    font-size: 16px;
-    line-height: 1.6;
-}
-
 h1 { font-size: 1.6rem; }
 h2 { font-size: 1.3rem; }
 h3 { font-size: 1.1rem; margin-bottom: .6rem; letter-spacing: .3px; }
@@ -56,6 +51,9 @@ h3 { font-size: 1.1rem; margin-bottom: .6rem; letter-spacing: .3px; }
    NAVBAR
 ========================= */
 .navbar {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
     height: 64px;
     background: rgba(8,10,12,.92);
     backdrop-filter: blur(10px);
@@ -104,7 +102,6 @@ h3 { font-size: 1.1rem; margin-bottom: .6rem; letter-spacing: .3px; }
     font-size: 1rem;
 }
 
-/* Analyze button */
 .search-bar button {
     background: var(--accent);
     color: #001018;
@@ -121,7 +118,7 @@ h3 { font-size: 1.1rem; margin-bottom: .6rem; letter-spacing: .3px; }
 }
 
 /* =========================
-   PDF BUTTON — RED ICON FIX
+   PDF BUTTON
 ========================= */
 .btn-icon {
     background: rgba(255,75,75,0.25);
@@ -136,7 +133,6 @@ h3 { font-size: 1.1rem; margin-bottom: .6rem; letter-spacing: .3px; }
     transition: all 0.25s ease;
 }
 
-/* Icon inside PDF button */
 .btn-icon i {
     color: #FF2D2D;
 }
@@ -147,37 +143,33 @@ h3 { font-size: 1.1rem; margin-bottom: .6rem; letter-spacing: .3px; }
 }
 
 .btn-icon:hover i {
-    color: #FF2D2D;  /* keep icon red on hover */
+    color: #FF2D2D;
 }
 
 /* =========================
-   DASHBOARD
-========================= */
-.dashboard {
-    height: calc(100vh - 64px - 32px);
-    max-width: 1400px;
-    margin: auto;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-/* =========================
-   HERO
+   HERO / INTRO
 ========================= */
 .hero-card {
     display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    background: linear-gradient(135deg, #12161F, #080A0C);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    background: linear-gradient(135deg, var(--card), var(--bg));
     border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
     box-shadow:
         0 0 48px rgba(0,209,255,.35),
         0 20px 60px rgba(0,0,0,.85);
 }
 
-/* SCORE */
+.hero-card p.intro {
+    font-size: 1rem;
+    color: var(--muted);
+    line-height: 1.4;
+}
+
+/* SCORE GAUGE */
 .gauge {
     width: 100px;
     height: 100px;
@@ -213,10 +205,19 @@ h3 { font-size: 1.1rem; margin-bottom: .6rem; letter-spacing: .3px; }
 }
 
 /* =========================
-   GRID
+   DASHBOARD / GRID
 ========================= */
+.dashboard {
+    max-width: 1400px;
+    margin: 1rem auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* CONTENT GRID */
 .content {
-    flex: 1;
     display: grid;
     grid-template-columns: 2fr 1fr;
     gap: 1rem;
@@ -229,7 +230,7 @@ h3 { font-size: 1.1rem; margin-bottom: .6rem; letter-spacing: .3px; }
 }
 
 /* =========================
-   CARD BASE (STRONG GLOW)
+   CARD BASE
 ========================= */
 .card {
     background: linear-gradient(180deg, #12161F, #0E131C);
@@ -247,45 +248,12 @@ h3 { font-size: 1.1rem; margin-bottom: .6rem; letter-spacing: .3px; }
     transform: translateY(-3px);
 }
 
-/* TLS — Neon Mint */
-#tls {
-    box-shadow:
-        0 0 0 2px rgba(0,245,155,.35),
-        0 0 45px rgba(0,245,155,.5),
-        0 22px 70px rgba(0,0,0,.85);
-}
-
-/* Headers — Electric Cyan */
-#headers {
-    box-shadow:
-        0 0 0 2px rgba(0,209,255,.35),
-        0 0 45px rgba(0,209,255,.5),
-        0 22px 70px rgba(0,0,0,.85);
-}
-
-/* Infrastructure — Soft Sky Blue */
-#infra {
-    box-shadow:
-        0 0 0 2px rgba(121,192,255,.4),
-        0 0 45px rgba(121,192,255,.5),
-        0 22px 70px rgba(0,0,0,.85);
-}
-
-/* DNS — Neon Cyan */
-#dns {
-    box-shadow:
-        0 0 0 2px rgba(121,192,255,.45),
-        0 0 50px rgba(121,192,255,.55),
-        0 24px 75px rgba(0,0,0,.9);
-}
-
-/* Recommendations — Cyber Amber */
-#recommendations {
-    box-shadow:
-        0 0 0 2px rgba(255,184,0,.45),
-        0 0 50px rgba(255,184,0,.55),
-        0 24px 75px rgba(0,0,0,.9);
-}
+/* TLS, HEADERS, INFRA, DNS, RECOMMENDATIONS */
+#tls { box-shadow: 0 0 0 2px rgba(0,245,155,.35), 0 0 45px rgba(0,245,155,.5), 0 22px 70px rgba(0,0,0,.85); }
+#headers { box-shadow: 0 0 0 2px rgba(0,209,255,.35), 0 0 45px rgba(0,209,255,.5), 0 22px 70px rgba(0,0,0,.85); }
+#infra { box-shadow: 0 0 0 2px rgba(121,192,255,.4), 0 0 45px rgba(121,192,255,.5), 0 22px 70px rgba(0,0,0,.85); }
+#dns { box-shadow: 0 0 0 2px rgba(121,192,255,.45), 0 0 50px rgba(121,192,255,.55), 0 24px 75px rgba(0,0,0,.9); }
+#recommendations { box-shadow: 0 0 0 2px rgba(255,184,0,.45), 0 0 50px rgba(255,184,0,.55), 0 24px 75px rgba(0,0,0,.9); }
 
 /* =========================
    TABLES
@@ -296,49 +264,19 @@ table {
     font-size: 1rem;
 }
 
-td, th {
-    padding: .55rem;
-    border-bottom: 1px solid var(--border);
-}
-
+td, th { padding: .55rem; border-bottom: 1px solid var(--border); }
 th { color: var(--muted); }
+td:last-child { font-family: ui-monospace, SFMono-Regular, monospace; color: var(--tech); font-size: 0.95rem; }
 
-td:last-child {
-    font-family: ui-monospace, SFMono-Regular, monospace;
-    color: var(--tech);
-    font-size: 0.95rem;
-}
+/* STATUS */
+.status-badge.present { color: var(--success); font-weight: 700; }
+.status-badge.missing { color: var(--danger); font-weight: 700; }
 
-/* =========================
-   STATUS
-========================= */
-.status-badge.present {
-    color: var(--success);
-    font-weight: 700;
-}
+/* DNS PANEL */
+.dns-panel { display: flex; flex-direction: column; gap: .6rem; }
+.dns-primary { font-size: .95rem; color: var(--tech); }
 
-.status-badge.missing {
-    color: var(--danger);
-    font-weight: 700;
-}
-
-/* =========================
-   DNS
-========================= */
-.dns-panel {
-    display: flex;
-    flex-direction: column;
-    gap: .6rem;
-}
-
-.dns-primary {
-    font-size: .95rem;
-    color: var(--tech);
-}
-
-/* =========================
-   RECOMMENDATIONS
-========================= */
+/* RECOMMENDATIONS ITEMS */
 .action-item {
     background: rgba(255,184,0,.16);
     border-left: 4px solid var(--warn);
@@ -347,13 +285,12 @@ td:last-child {
     margin-bottom: .5rem;
 }
 
-/* =========================
-   FOOTER
-========================= */
+/* FOOTER */
 footer {
     height: 32px;
     text-align: center;
     font-size: .8rem;
     color: var(--muted);
+    margin-top: 2rem;
 }
 
