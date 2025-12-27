@@ -10,8 +10,8 @@ const pdfBtn  = document.getElementById("pdfBtn");
 ========================= */
 function resetUI() {
     document.getElementById("scoreValue").innerText = "--";
-    document.getElementById("targetDisplay").innerText = "Scanning...";
-    document.getElementById("targetSub").innerText = "Please wait…";
+    document.getElementById("targetDisplay").innerText = "Ready to Scan";
+    document.getElementById("targetSub").innerText = "Enter a URL to begin security audit";
     document.getElementById("scoreGauge").className = "gauge";
 
     ["tls","headers","infra","recommendations"].forEach(id => {
@@ -34,18 +34,24 @@ async function scan() {
 
     resetUI();
 
-    const res = await fetch(`${BACKEND_URL}/scan`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-    });
+    try {
+        const res = await fetch(`${BACKEND_URL}/scan`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url }),
+        });
 
-    const data = await res.json();
-    renderAll(data);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        renderAll(data);
+    } catch (err) {
+        console.error("Scan error:", err);
+        alert("Failed to fetch scan data. Check console.");
+    }
 }
 
 /* =========================
-   PDF
+   PDF DOWNLOAD
 ========================= */
 function downloadPDF() {
     const url = document.getElementById("urlInput").value.trim();
@@ -72,9 +78,10 @@ function renderAll(data) {
 /* HERO */
 function renderHero(data) {
     const gauge = document.getElementById("scoreGauge");
-    document.getElementById("scoreValue").innerText = data.score;
-    gauge.className = `gauge ${data.score < 50 ? "bad" : "ok"}`;
-    document.getElementById("targetDisplay").innerText = data.target;
+    const score = data.score ?? "--";
+    document.getElementById("scoreValue").innerText = score;
+    gauge.className = `gauge ${score < 50 ? "bad" : "ok"}`;
+    document.getElementById("targetDisplay").innerText = data.target || "-";
     document.getElementById("targetSub").innerText = "Scan completed";
 }
 
@@ -107,20 +114,20 @@ function renderHeaders(headers) {
     `;
 }
 
-/* INFRA */
+/* INFRASTRUCTURE */
 function renderInfra(infra) {
     document.getElementById("infra").innerHTML = `
         <h3><i class="fas fa-server"></i> Infrastructure</h3>
         <table>
             <tr><td>Server</td><td>${infra?.server || "-"}</td></tr>
             <tr><td>CDN</td><td>${infra?.cdn || "-"}</td></tr>
+            <tr><td>Hosting</td><td>${infra?.hosting_provider || "-"}</td></tr>
+            <tr><td>WAF</td><td>${infra?.waf || "-"}</td></tr>
         </table>
     `;
 }
 
-/* =========================
-   DNS (MATCHES BACKEND)
-========================= */
+/* DNS */
 function renderDNS(dns) {
     if (!dns || !dns.results) {
         document.getElementById("dns").innerHTML = `
@@ -159,7 +166,6 @@ function renderDNS(dns) {
 /* RECOMMENDATIONS */
 function renderRecommendations(recs) {
     const el = document.getElementById("recommendations");
-
     if (!recs || recs.length === 0) {
         el.innerHTML = `
             <h3><i class="fas fa-bolt"></i> Recommendations</h3>
@@ -174,6 +180,9 @@ function renderRecommendations(recs) {
     `;
 }
 
+/* =========================
+   EVENTS
+========================= */
 scanBtn.addEventListener("click", scan);
 pdfBtn.addEventListener("click", downloadPDF);
 

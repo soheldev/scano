@@ -20,13 +20,16 @@ async def run_scan(payload: dict):
     if not url:
         raise HTTPException(status_code=400, detail="URL is required")
 
-    return await scan(url)
+    # ✅ await the async scan function
+    data = await scan(url)
+    return data
 
 @app.get("/api/scan/pdf")
 async def scan_pdf(url: str):
     if not url:
         raise HTTPException(status_code=400, detail="URL is required")
 
+    # ✅ await the async scan function
     data = await scan(url)
     pdf = build_pdf(data)
 
