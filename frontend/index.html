@@ -31,8 +31,7 @@
         <h2>Welcome to WebGuard</h2>
         <p class="intro">
             WebGuard is a fast, privacy-first web security scanner that lets anyone check a website’s basic security posture in seconds.
-            Simply paste a URL to see insights on SSL/TLS health, DNS and CDN protection, security headers, and common exposure risks—
-            no login, no data storage, and no intrusive testing.
+            Simply paste a URL to see insights on SSL/TLS health, DNS and CDN protection, security headers, and common exposure risks—no login, no data storage, and no intrusive testing.
         </p>
     </section>
 
@@ -53,19 +52,32 @@
     <!-- CONTENT -->
     <section class="content">
 
-        <!-- LEFT -->
+        <!-- LEFT PANEL -->
         <div class="left-panel">
-            <div id="tls" class="card"></div>
-            <div id="headers" class="card"></div>
-            <div id="infra" class="card"></div>
-            <div id="recommendations" class="card"></div>
+
+            <section id="tls" class="card" role="region" aria-labelledby="tls-title">
+                <h3 id="tls-title"><i class="fas fa-lock"></i> TLS / SSL Configuration</h3>
+            </section>
+
+            <section id="headers" class="card" role="region" aria-labelledby="headers-title">
+                <h3 id="headers-title"><i class="fas fa-list-check"></i> HTTP Security Headers</h3>
+            </section>
+
+            <section id="infra" class="card" role="region" aria-labelledby="infra-title">
+                <h3 id="infra-title"><i class="fas fa-server"></i> Infrastructure</h3>
+            </section>
+
+            <section id="recommendations" class="card" role="region" aria-labelledby="rec-title">
+                <h3 id="rec-title"><i class="fas fa-bolt"></i> Recommendations</h3>
+            </section>
+
         </div>
 
-        <!-- RIGHT -->
-        <div id="dns" class="card dns-panel">
-            <h3><i class="fas fa-globe"></i> DNS</h3>
+        <!-- RIGHT PANEL -->
+        <aside id="dns" class="card dns-panel" role="region" aria-labelledby="dns-title">
+            <h3 id="dns-title"><i class="fas fa-globe"></i> DNS</h3>
 
-            <table class="dns-table">
+            <table class="dns-table" aria-describedby="dns-primary">
                 <thead>
                     <tr>
                         <th>Source</th>
@@ -74,11 +86,13 @@
                         <th>IPs</th>
                     </tr>
                 </thead>
-                <tbody></tbody>
+                <tbody>
+                    <!-- JS will populate rows -->
+                </tbody>
             </table>
 
-            <div id="dns-primary" class="dns-primary"></div>
-        </div>
+            <div id="dns-primary" class="dns-primary">Primary IP: -</div>
+        </aside>
 
     </section>
 </main>

@@ -14,13 +14,11 @@ function resetUI() {
     document.getElementById("targetSub").innerText = "Enter a URL to begin security audit";
     document.getElementById("scoreGauge").className = "gauge";
 
-    // TLS, Headers, Infra, Recommendations
     ["tls","headers","infra","recommendations"].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = "<p>Loading…</p>";
     });
 
-    // DNS panel
     document.getElementById("dns").innerHTML = `
         <h3><i class="fas fa-globe"></i> DNS</h3>
         <p>Resolving DNS…</p>
@@ -80,19 +78,11 @@ function renderAll(data) {
 /* HERO */
 function renderHero(data) {
     const gauge = document.getElementById("scoreGauge");
-    document.getElementById("scoreValue").innerText = data.score;
-    gauge.className = `gauge ${data.score < 50 ? "bad" : "ok"}`;
-    document.getElementById("targetDisplay").innerText = data.target;
+    const score = data.score ?? "--";
+    document.getElementById("scoreValue").innerText = score;
+    gauge.className = `gauge ${score < 50 ? "bad" : "ok"}`;
+    document.getElementById("targetDisplay").innerText = data.target || "-";
     document.getElementById("targetSub").innerText = "Scan completed";
-
-    // Optional: show site intro below hero
-    const heroCard = document.querySelector(".hero-card");
-    if (!document.querySelector(".hero-card p.intro") && heroCard) {
-        const intro = document.createElement("p");
-        intro.className = "intro";
-        intro.innerText = "Scano is a fast, privacy-first web security scanner that lets anyone check a website’s basic security posture in seconds. Simply paste a URL to see insights on SSL/TLS health, DNS and CDN protection, security headers, and common exposure risks—no login, no data storage, and no intrusive testing.";
-        heroCard.appendChild(intro);
-    }
 }
 
 /* TLS */
@@ -124,13 +114,15 @@ function renderHeaders(headers) {
     `;
 }
 
-/* INFRA */
+/* INFRASTRUCTURE */
 function renderInfra(infra) {
     document.getElementById("infra").innerHTML = `
         <h3><i class="fas fa-server"></i> Infrastructure</h3>
         <table>
             <tr><td>Server</td><td>${infra?.server || "-"}</td></tr>
             <tr><td>CDN</td><td>${infra?.cdn || "-"}</td></tr>
+            <tr><td>Hosting</td><td>${infra?.hosting_provider || "-"}</td></tr>
+            <tr><td>WAF</td><td>${infra?.waf || "-"}</td></tr>
         </table>
     `;
 }
@@ -174,7 +166,6 @@ function renderDNS(dns) {
 /* RECOMMENDATIONS */
 function renderRecommendations(recs) {
     const el = document.getElementById("recommendations");
-
     if (!recs || recs.length === 0) {
         el.innerHTML = `
             <h3><i class="fas fa-bolt"></i> Recommendations</h3>
@@ -189,6 +180,9 @@ function renderRecommendations(recs) {
     `;
 }
 
+/* =========================
+   EVENTS
+========================= */
 scanBtn.addEventListener("click", scan);
 pdfBtn.addEventListener("click", downloadPDF);
 

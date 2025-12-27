@@ -49,13 +49,12 @@ def build_pdf(data):
     y -= 26
     c.setFont("Helvetica", 10)
     c.setFillColor(MUTED)
-    c.drawString(LEFT, y, f"Target: {data.get('target', '-')}")
+    c.drawString(LEFT, y, f"Target: {data.get('target', '-')}")    
     c.drawRightString(
         RIGHT,
         y,
         datetime.utcnow().strftime("%d %b %Y %H:%M UTC")
     )
-
     y -= 12
     hr()
 
@@ -68,13 +67,16 @@ def build_pdf(data):
 
     tls = data.get("tls", {})
     headers = data.get("headers", {})
+    infra = data.get("infrastructure", {})
 
     exec_rows = [
         ("TLS Version", tls.get("tls_version", "-")),
         ("Certificate Issuer", tls.get("issuer", "-")),
-        ("Content Security Policy", data.get("csp_status", "Unknown")),
         ("Security Headers", f"{sum(headers.values())}/{len(headers)}"),
-        ("CDN / Proxy", data.get("cdn", "Unknown")),
+        ("CDN / Proxy", infra.get("cdn", "-")),
+        ("Hosting Provider", infra.get("hosting_provider", "-")),
+        ("WAF", infra.get("waf", "-")),
+        ("Server", infra.get("server", "-")),
     ]
 
     c.setFont("Helvetica", 10)
